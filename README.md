@@ -81,6 +81,28 @@ gtm-enrich check          # what's wired up, what isn't, what each thing needs
 └───────────────────┴──────────────┴────────────┴───────────────────────────┘
 ```
 
+### Which backend?
+
+Measured on the five domains in `examples/domains.csv`, same day, same code —
+markdown extracted and vendors detected:
+
+| Domain | `direct` | `firecrawl` | | Vendors found |
+| --- | ---: | ---: | --- | --- |
+| stripe.com | 14,167 | 35,875 | 2.5× | Firecrawl also caught Google Tag Manager |
+| linear.app | 10,424 | 18,584 | 1.8× | same |
+| gong.io | 13,419 | 35,411 | 2.6× | same |
+| wistia.com | 4,061 | 19,039 | 4.7× | **Firecrawl also caught Wistia** |
+| notion.so | 1,366 | 14,498 | 10.6× | same |
+
+`direct` is free and fine for server-rendered pages. On JavaScript-heavy sites it
+sees a fraction of the page — notion.so came back at 1,366 characters, barely
+above the threshold where this tool gives up and tells you to switch backends.
+
+The wistia.com row is the one worth dwelling on: a plain HTTP fetch could not see
+that Wistia's own homepage embeds a Wistia player, because the embed is injected
+at runtime. Lazy-loaded analytics and video tags are invisible to `direct`, and
+that is a silent wrong answer rather than an error.
+
 Then mix and match:
 
 ```bash
@@ -189,6 +211,15 @@ backends return markdown, some only HTML; `build_page` handles either, and a
 markdown-only backend degrades in a defined way — links still parse, vendor
 detection is empty, because the tags it reads no longer exist.
 
+**Raw HTML, not cleaned HTML.** Firecrawl offers both, and the difference is not
+cosmetic: the cleaned `html` format strips every `<script>` tag, which is exactly
+where `js.hs-scripts.com`, `googletagmanager.com`, and every other vendor
+fingerprint lives. Measured on one real homepage, cleaned HTML contained 0 script
+tags and raw HTML contained 44. Asking for the wrong one returns zero detected
+vendors forever, with no error anywhere — the kind of bug that only shows up
+against a live API, which is why this one was found by running it and not by a
+test.
+
 **Deterministic signals are kept separate from judgement.** A `/pricing` link
 either exists or it doesn't; `js.hs-scripts.com` is either on the page or it
 isn't. Those are extracted with a parser and passed to the model as facts it
@@ -257,20 +288,26 @@ immediately — that's a config error, not a data error, and it should be loud.
 ## Tests
 
 ```bash
-pytest -q                  # 130 tests, no network, no credentials
+pytest -q                  # 132 tests, no network, no credentials
 ruff check src tests
 ```
 
 Every test runs against mocked HTTP transports and stubbed SDK clients, so CI is
 hermetic. The suite covers the things most likely to break quietly: robots.txt
 refusals, the www fallback, JS-only shells, all four backends' response shapes
-(including crawl4ai's three response envelopes and Firecrawl's list-valued
-metadata), per-destination type coercion, no-op suppression, `Retry-After`
+(including crawl4ai's three response envelopes, Firecrawl's list-valued metadata,
+and a regression test pinning the raw-vs-cleaned HTML choice above), per-destination
+type coercion, no-op suppression, `Retry-After`
 handling, SOQL injection guards, both providers' refusal paths, token
 normalization across vendors, and cache invalidation.
 
 ## What this isn't
 
+- **Only `direct` and `firecrawl` are live-tested.** Both have been run against
+  real sites. `crawl4ai` and `apify` are built to their documented API shapes and
+  covered by tests against mocked transports, but no successful call has been
+  made to either. Same for the OpenAI provider — the request shape is verified,
+  a real completion is not.
 - **The homepage only.** No crawling to `/about`, `/pricing`, or `/customers`,
   which is where a lot of the real signal lives.
 - **The keyword fallback is genuinely crude.** It's substring matching against a

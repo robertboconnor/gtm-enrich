@@ -8,6 +8,8 @@ without HTML degrades in a defined way instead of crashing.
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -105,7 +107,11 @@ async def _no_sleep(seconds: float) -> None:
 def firecrawl_payload(**overrides) -> dict:
     data = {
         "markdown": MARKDOWN,
+        # Firecrawl returns both when asked; `html` is cleaned (no <script>),
+        # `rawHtml` is the original. Mirrors a real response.
         "html": "<html><body><h1>Acme</h1></body></html>",
+        "rawHtml": '<html><head><script src="https://js.hs-scripts.com/1.js">'
+                   "</script></head><body><h1>Acme</h1></body></html>",
         "metadata": {
             "title": "Acme Analytics",
             "description": "Analytics for B2B SaaS.",
@@ -133,10 +139,39 @@ async def test_firecrawl_normalizes_a_successful_scrape() -> None:
     assert seen["auth"] == "Bearer fc-test"
     # onlyMainContent must stay off: the nav is where pricing/careers links live.
     assert b'"onlyMainContent": false' in seen["body"] or b'"onlyMainContent":false' in seen["body"]
-    assert b"markdown" in seen["body"] and b"html" in seen["body"]
+    assert b"markdown" in seen["body"] and b"rawHtml" in seen["body"]
     assert content.final_url == "https://www.acme.example/"  # post-redirect URL wins
     assert content.title == "Acme Analytics"
     assert content.markdown == MARKDOWN
+
+
+async def test_firecrawl_asks_for_rawhtml_not_cleaned_html() -> None:
+    """Regression: `html` is cleaned and has no <script> tags, so vendor
+    fingerprinting silently found nothing on every account. Measured live:
+    the cleaned format had 0 script tags where rawHtml had 44."""
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["formats"] = json.loads(request.content)["formats"]
+        return httpx.Response(200, json=firecrawl_payload())
+
+    async with mock_client(handler) as client:
+        content = await FirecrawlFetcher(api_key="k", client=client).fetch("https://acme.example/")
+
+    assert "rawHtml" in seen["formats"]
+    assert "js.hs-scripts.com" in content.html  # the fingerprint survived
+
+
+async def test_firecrawl_falls_back_to_cleaned_html_when_rawhtml_is_absent() -> None:
+    payload = firecrawl_payload()
+    del payload["data"]["rawHtml"]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+
+    async with mock_client(handler) as client:
+        content = await FirecrawlFetcher(api_key="k", client=client).fetch("https://acme.example/")
+    assert "<h1>Acme</h1>" in content.html
 
 
 async def test_firecrawl_handles_list_valued_metadata() -> None:

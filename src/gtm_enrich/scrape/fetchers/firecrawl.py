@@ -1,13 +1,20 @@
 """Firecrawl: hosted scraping that renders JavaScript and returns markdown.
 
-`POST https://api.firecrawl.dev/v2/scrape` with a Bearer key. Asking for both
-`markdown` and `html` costs nothing extra and is worth it -- the markdown is
-better than anything we'd produce locally, and the HTML is what vendor
-fingerprinting reads.
+`POST https://api.firecrawl.dev/v2/scrape` with a Bearer key. We ask for
+`markdown` and `rawHtml`: the markdown is better than anything we'd produce
+locally, and the raw HTML is what vendor fingerprinting reads.
 
-`onlyMainContent` is off on purpose. Firecrawl's default strips nav and footer,
-which is right for article extraction and wrong here: the nav is where the
-pricing, product, and careers links live.
+Two of Firecrawl's defaults are wrong for this job and both are set explicitly:
+
+* `onlyMainContent` is off. Firecrawl's default strips nav and footer, which is
+  right for article extraction and wrong here -- the nav is where the pricing,
+  product, and careers links live.
+* We request `rawHtml`, not `html`. The `html` format is *cleaned*, and cleaning
+  removes every `<script>` tag -- which is precisely where `js.hs-scripts.com`,
+  `googletagmanager.com`, and every other vendor fingerprint lives. Measured on
+  one real homepage: `html` contained 0 script tags, `rawHtml` contained 44.
+  Asking for the wrong one silently returns zero detected vendors on every
+  account, with no error anywhere.
 """
 
 from __future__ import annotations
@@ -47,7 +54,8 @@ class FirecrawlFetcher(Fetcher):
                 headers={"Authorization": f"Bearer {self._key}"},
                 json={
                     "url": url,
-                    "formats": ["markdown", "html"],
+                    # rawHtml, not html -- see the module docstring.
+                    "formats": ["markdown", "rawHtml"],
                     "onlyMainContent": False,
                 },
             )
@@ -64,7 +72,9 @@ class FirecrawlFetcher(Fetcher):
         data = payload.get("data") or {}
         metadata = data.get("metadata") or {}
         markdown = data.get("markdown")
-        html = data.get("html")
+        # Prefer rawHtml; fall back to the cleaned html so a response that only
+        # carries one of them still yields a page (with no vendor signals).
+        html = data.get("rawHtml") or data.get("html")
         if not markdown and not html:
             raise FetcherError(f"{url}: Firecrawl returned no content.")
 
