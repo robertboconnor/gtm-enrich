@@ -32,7 +32,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "respx>=0.21", "ruff>=0.6"]
+# The webhook service. Not needed for the CLI, scheduled runs, or the tests
+# that cover everything except the HTTP layer.
+server = ["fastapi>=0.115", "uvicorn[standard]>=0.30"]
+dev = [
+  "pytest>=8.0", "pytest-asyncio>=0.23", "respx>=0.21", "ruff>=0.6",
+  "fastapi>=0.115", "uvicorn[standard]>=0.30",
+]
 
 [project.scripts]
 gtm-enrich = "gtm_enrich.cli:app"

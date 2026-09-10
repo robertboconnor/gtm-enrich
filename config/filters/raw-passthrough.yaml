@@ -1,0 +1,17 @@
+# The escape hatch. Any filter language covering two CRMs will eventually fail to
+# express something real. When that happens, write the native query yourself and
+# it is used verbatim — no compilation, no interpretation.
+
+name: "Hand-written queries"
+
+raw:
+  hubspot:
+    filterGroups:
+      - filters:
+          - propertyName: domain
+            operator: HAS_PROPERTY
+          - propertyName: num_associated_contacts
+            operator: GTE
+            value: "5"
+  salesforce:
+    where: "Website != null AND AnnualRevenue > 1000000 AND Owner.IsActive = true"

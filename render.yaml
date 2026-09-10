@@ -1,0 +1,59 @@
+# Render blueprint — two services from one image, which is the whole point of
+# the trigger/pipeline split. Neither is deployed; this is here so someone who
+# wants it can point Render at this repo and get both.
+#
+# Every secret is marked sync:false, meaning Render prompts for it rather than
+# reading it from this file. Nothing sensitive belongs in git.
+
+services:
+  # 1. Real-time. Receives CRM webhooks, enriches as records change.
+  - type: web
+    name: gtm-enrich-api
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    disk:
+      name: gtm-cache
+      mountPath: /app/.cache   # page cache, job queue, and run state
+      sizeGB: 1
+    envVars:
+      - key: GTM_DESTINATION        # dryrun until you deliberately change it
+        value: dryrun
+      - key: GTM_LLM_PROVIDER
+        value: anthropic
+      - key: GTM_SCRAPER
+        value: firecrawl
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: FIRECRAWL_API_KEY
+        sync: false
+      - key: HUBSPOT_PRIVATE_APP_TOKEN
+        sync: false
+      - key: HUBSPOT_CLIENT_SECRET  # signs incoming webhooks
+        sync: false
+      - key: GTM_WEBHOOK_SECRET     # shared secret for the Salesforce endpoint
+        sync: false
+
+  # 2. Scheduled. Sweeps for anything the webhooks missed.
+  - type: cron
+    name: gtm-enrich-nightly
+    runtime: docker
+    schedule: "0 6 * * *"           # 06:00 UTC daily
+    dockerCommand: >
+      gtm-enrich run
+      --source hubspot
+      --filter config/filters/new-prospects.yaml
+      --since-last-run
+      --dest dryrun
+      --limit 500
+    envVars:
+      - key: GTM_LLM_PROVIDER
+        value: anthropic
+      - key: GTM_SCRAPER
+        value: firecrawl
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: FIRECRAWL_API_KEY
+        sync: false
+      - key: HUBSPOT_PRIVATE_APP_TOKEN
+        sync: false

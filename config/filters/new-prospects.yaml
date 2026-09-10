@@ -1,0 +1,38 @@
+# "Prospects with a website that we haven't looked at in 90 days."
+#
+# Written once, compiled into a HubSpot search body or a SOQL WHERE clause.
+# `gtm-enrich preview --source hubspot --filter this-file` prints the exact
+# query before anything runs.
+
+name: "New prospects with a website"
+
+# Neutral names on the left, what each system calls them on the right. Nothing
+# is guessed — if a field has no name for a system, that system says so instead
+# of silently dropping the filter.
+fields:
+  website:
+    hubspot: domain
+    salesforce: Website
+  lifecycle:
+    hubspot: lifecyclestage
+    salesforce: Type
+  enriched_at:
+    hubspot: gtm_enriched_at
+    salesforce: GTM_Enriched_At__c
+
+filters:
+  - field: website
+    op: is_known
+
+  - field: lifecycle
+    op: not_in
+    value: ["customer", "evangelist", "other"]
+
+  # The loop closes here: this tool writes enriched_at on the way out, and reads
+  # it on the way back in. `or_unknown` also matches records never enriched.
+  - field: enriched_at
+    op: older_than_days
+    value: 90
+    or_unknown: true
+
+limit: 200

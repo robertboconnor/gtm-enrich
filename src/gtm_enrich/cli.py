@@ -32,12 +32,15 @@ from .config import (
 )
 from .destinations import DESTINATIONS, DestinationError, build_destination
 from .destinations.dryrun import DryRunDestination
+from .filters import FilterError, FilterSpec
 from .mapping import mapping_field_names
 from .models import EnrichmentResult
 from .pipeline import enrich_domains, write_results
 from .scrape.fetch import FetchError, RobotsCache, build_client, normalize_domain, scrape_domain
 from .scrape.fetchers import SCRAPER_REQUIREMENTS, SCRAPERS, FetcherError, build_fetcher
 from .scrape.probe import COMMON_PATHS, ControlMode, PathProber, Verdict
+from .sources import SOURCES, SourceError, build_source
+from .state import StateStore, utcnow
 
 app = typer.Typer(
     add_completion=False,
@@ -372,9 +375,118 @@ def probe(
 
 
 @app.command()
+def preview(
+    source: str = typer.Option("hubspot", help=f"One of: {', '.join(SOURCES)}."),
+    filter_file: Path = typer.Option(
+        Path("config/filters/new-prospects.yaml"), "--filter", help="Filter definition."
+    ),
+    domains: Path = typer.Option(None, "--domains", help="File, when --source csv."),
+    limit: int = typer.Option(10, help="How many matching records to show."),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Show the query a filter compiles to, and what it matches — without enriching.
+
+    The read-side equivalent of a dry run. Check the query before it pulls
+    50,000 accounts.
+    """
+    _configure_logging(verbose)
+    _settings()
+    try:
+        spec = FilterSpec.load(filter_file)
+    except (ConfigError, FilterError) as exc:
+        console.print(f"[red]Filter error:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
+
+    try:
+        src = build_source(source, path=domains)
+    except SourceError as exc:
+        console.print(f"[red]Source error:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
+
+    with src:
+        console.print(f"[bold]{spec.name}[/bold] via [bold]{source}[/bold]\n")
+        try:
+            console.print("[dim]— the query that will run —[/dim]")
+            console.print(src.describe(spec))
+        except FilterError as exc:
+            console.print(f"[red]Cannot compile this filter for {source}:[/red] {exc}")
+            raise typer.Exit(code=2) from exc
+
+        problems = src.preflight(spec)
+        if problems:
+            console.print()
+            for problem in problems:
+                console.print(f"[yellow]Preflight:[/yellow] {problem}")
+            raise typer.Exit(code=1)
+
+        try:
+            records = src.fetch(spec, limit=limit)
+        except SourceError as exc:
+            console.print(f"\n[red]Query failed:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
+
+    if not records:
+        console.print("\n[yellow]No records matched.[/yellow]")
+        return
+
+    table = Table(title=f"First {len(records)} matches", header_style="bold")
+    table.add_column("Record ID", style="dim", no_wrap=True)
+    table.add_column("Domain", style="cyan")
+    table.add_column("Name", overflow="fold")
+    for r in records:
+        table.add_row(r.record_id or "—", r.domain, str(r.properties.get("name") or ""))
+    console.print(table)
+    console.print(
+        "\n[dim]Nothing was enriched. Swap `preview` for `run` to process these.[/dim]"
+    )
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("0.0.0.0", help="Bind address."),
+    port: int = typer.Option(8000, help="Port. Most hosts set $PORT for you."),
+    dest: str = typer.Option(None, help="Where the worker writes. Default: dryrun."),
+    icp: Path = typer.Option(Path("config/icp.yaml")),
+    mapping: Path = typer.Option(Path("config/mapping.yaml")),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Run the webhook service, so records enrich as they change in the CRM."""
+    _configure_logging(verbose)
+    try:
+        import uvicorn
+
+        from .server.app import create_app
+    except ImportError as exc:
+        console.print(
+            "[red]The server extras are not installed.[/red] "
+            'Run: pip install -e ".[server]"'
+        )
+        raise typer.Exit(code=2) from exc
+
+    port = int(os.getenv("PORT", port))
+    application = create_app(icp_path=icp, mapping_path=mapping, destination=dest)
+    console.print(
+        f"[bold]gtm-enrich[/bold] listening on {host}:{port}\n"
+        f"  POST /webhooks/hubspot     (needs HUBSPOT_CLIENT_SECRET)\n"
+        f"  POST /webhooks/salesforce  (needs GTM_WEBHOOK_SECRET)\n"
+        f"  GET  /health\n"
+    )
+    uvicorn.run(application, host=host, port=port, log_level="debug" if verbose else "info")
+
+
+@app.command()
 def run(
     domain: list[str] = typer.Option(None, "--domain", "-d", help="Repeatable."),
     domains: Path = typer.Option(None, "--domains", help="CSV or txt file of domains."),
+    source: str = typer.Option(
+        None, help=f"Pull the list from a CRM instead: {', '.join(SOURCES)}."
+    ),
+    filter_file: Path = typer.Option(
+        Path("config/filters/new-prospects.yaml"), "--filter", help="Filter, with --source."
+    ),
+    since_last_run: bool = typer.Option(
+        False, "--since-last-run", help="Only records modified since this filter last ran."
+    ),
     dest: str = typer.Option("dryrun", help=f"One of: {', '.join(DESTINATIONS)}."),
     shape: str = typer.Option(
         "hubspot", help="Which destination's field names a dry run should emulate."
@@ -395,12 +507,25 @@ def run(
     settings = _settings(provider=provider, model=model, scraper=scraper)
     icp_profile, mapping_config = _load_configs(icp, mapping)
 
+    started_at = utcnow()
+    watermark_key = ""
     targets = list(domain or [])
-    if domains:
+
+    if source:
+        targets.extend(
+            _fetch_from_source(source, filter_file, domains, limit, since_last_run)
+        )
+        watermark_key = f"{source}:{filter_file.stem}"
+    elif domains:
         targets.extend(read_domain_file(domains))
+
     if not targets:
-        console.print("[red]Nothing to do:[/red] pass --domain or --domains.")
-        raise typer.Exit(code=2)
+        console.print(
+            "[red]Nothing to do:[/red] pass --domain, --domains, or --source."
+            if not source
+            else "[yellow]No records matched the filter.[/yellow]"
+        )
+        raise typer.Exit(code=2 if not source else 0)
     if limit > 0:
         targets = targets[:limit]
 
@@ -476,8 +601,75 @@ def run(
         )
         console.print(f"[green]Wrote[/green] {json_out}")
 
+    if watermark_key:
+        # The run's *start* time, not its finish: anything changed mid-run is
+        # caught next time rather than falling into the gap.
+        StateStore().record_run(watermark_key, started_at, len(targets))
+        console.print(f"[dim]Watermark saved for {watermark_key}.[/dim]")
+
     if any(w.action == "failed" for w in writes):
         raise typer.Exit(code=1)
+
+
+def _fetch_from_source(
+    source: str, filter_file: Path, domains: Path | None, limit: int, since_last_run: bool
+) -> list[str]:
+    """Pull the target list out of a CRM, applying the filter."""
+    try:
+        spec = FilterSpec.load(filter_file)
+    except (ConfigError, FilterError) as exc:
+        console.print(f"[red]Filter error:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
+
+    if since_last_run:
+        last = StateStore().last_run(f"{source}:{filter_file.stem}")
+        if last is None:
+            console.print(
+                "[yellow]--since-last-run: no previous run recorded, "
+                "using the filter as written.[/yellow]"
+            )
+        else:
+            console.print(f"[dim]Only records modified since {last.isoformat()}.[/dim]")
+            spec = _narrow_to_modified_since(spec, last)
+
+    try:
+        src = build_source(source, path=domains)
+    except SourceError as exc:
+        console.print(f"[red]Source error:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
+
+    with src:
+        problems = src.preflight(spec)
+        if problems:
+            for problem in problems:
+                console.print(f"[yellow]Preflight:[/yellow] {problem}")
+            raise typer.Exit(code=1)
+        try:
+            records = src.fetch(spec, limit=limit or None)
+        except SourceError as exc:
+            console.print(f"[red]Query failed:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
+
+    console.print(f"[dim]{len(records)} records from {source}.[/dim]")
+    return [r.domain for r in records]
+
+
+def _narrow_to_modified_since(spec: FilterSpec, since):
+    """Add a 'modified since' clause to a filter, for incremental runs."""
+    from .filters import Condition, FieldAlias
+
+    days = max((utcnow() - since).total_seconds() / 86400, 0.0001)
+    fields = dict(spec.fields)
+    fields.setdefault(
+        "_modified", FieldAlias(hubspot="hs_lastmodifieddate", salesforce="LastModifiedDate")
+    )
+    return FilterSpec(
+        name=spec.name,
+        fields=fields,
+        conditions=[*spec.conditions, Condition("_modified", "newer_than_days", days)],
+        limit=spec.limit,
+        raw=spec.raw,
+    )
 
 
 def _print_write_summary(writes, results, settings) -> None:

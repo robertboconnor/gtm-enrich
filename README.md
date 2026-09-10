@@ -4,27 +4,38 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-Scrape a company's homepage, ask a fixed set of GTM questions about what's there,
-and write the answers back into **Salesforce** or **HubSpot** as structured fields.
+Pull a list of accounts **out of** Salesforce or HubSpot, scrape each company's
+homepage, ask a fixed set of GTM questions about what's there, and write the
+answers back **into** the CRM as structured fields.
 
-Bring your own scraper (**direct**, **Firecrawl**, **crawl4ai**, or **Apify**) and
-your own model (**Claude** or **GPT**). Point it at your own CRM.
+Run it by hand, on a schedule, or in real time as records change. Bring your own
+scraper (**direct**, **Firecrawl**, **crawl4ai**, or **Apify**) and your own model
+(**Claude** or **GPT**). Point it at your own stack.
 
 > Built by a RevOps operator. The design bias throughout is **dry-run first**:
 > build the exact payload, show it, write nothing until told to.
 
 ```
-domains ──▶ scrape ──▶ markdown ──▶ analyze ──▶ map ──▶ write
-              │           │            │          │        │
-         robots.txt  deterministic  Claude /   config/   HubSpot
-         + caching     signals        GPT      mapping   Salesforce
-                      (no LLM)     structured   .yaml    dry run
+   WHERE THE LIST COMES FROM          THE PIPELINE              WHERE IT GOES
+  ┌──────────────────────┐
+  │ CSV / --domain       │──┐
+  │ HubSpot + filter     │──┼──▶ scrape ─▶ analyze ─▶ map ─▶ HubSpot
+  │ Salesforce + filter  │──┘      │          │        │     Salesforce
+  └──────────────────────┘         │          │        │     dry run
+                                robots.txt  Claude/  config/
+     triggered by: you,          + caching    GPT    mapping
+     a schedule, or a webhook   determinstic schema-   .yaml
+                                  signals   enforced
 ```
 
 ## What's in the box
 
 | Piece | What it does |
 | --- | --- |
+| `sources/` | Where the account list comes from — a CSV, or a filtered query against HubSpot or Salesforce. |
+| `filters.py` + `config/filters/` | One filter definition, compiled into a HubSpot search body *or* a SOQL `WHERE` clause. |
+| `server/` | The webhook service: verify, deduplicate, enqueue, return. Plus a durable job queue and worker. |
+| `state.py` | Run watermarks and event dedupe, so scheduled runs stay incremental and webhook retries don't double-bill. |
 | `scrape/fetchers/` | Four fetch backends behind one interface — `direct` (plain HTTP, no key), `firecrawl`, `crawl4ai` (self-hosted), `apify`. Three of them render JavaScript. |
 | `analyze/providers/` | Two LLM providers behind one interface — **Anthropic** and **OpenAI** — both using schema-enforced structured output, plus a keyword fallback that needs no key at all. |
 | `scrape/markdown.py` | HTML → markdown, and the deterministic signals: vendor fingerprints and structural facts, parsed rather than inferred. |
@@ -32,7 +43,8 @@ domains ──▶ scrape ──▶ markdown ──▶ analyze ──▶ map ─�
 | `mapping.py` + `config/mapping.yaml` | Enrichment fields → CRM API names, per destination. No field name is hardcoded anywhere. |
 | `config/icp.yaml` | What "good fit" means. Injected into the prompt, so editing it changes every score. |
 | `destinations/` | `dryrun`, `hubspot`, `salesforce` — all sharing one find → diff → write upsert. |
-| `cli.py` | `check`, `fields`, `scrape`, `probe`, `run`. |
+| `cli.py` | `check`, `fields`, `scrape`, `probe`, `preview`, `run`, `serve`. |
+| `Dockerfile` + `render.yaml` | One image, three jobs. A blueprint for a web service and a nightly cron, neither deployed. |
 
 ## Requirements
 
@@ -109,10 +121,106 @@ Then mix and match:
 ```bash
 gtm-enrich scrape gong.io --scraper firecrawl
 gtm-enrich probe vercel.com              # which pages actually exist?
+gtm-enrich preview --source hubspot      # what would this filter pull?
+gtm-enrich run --source hubspot --filter config/filters/new-prospects.yaml
 gtm-enrich run --domains accounts.csv --provider openai --model gpt-5-nano
 gtm-enrich run --domains accounts.csv --scraper apify --dest hubspot
 gtm-enrich fields --dest salesforce      # the fields to create before a live run
 ```
+
+## Getting the list out of the CRM
+
+You should not have to export a CSV to enrich your own database. Write the filter
+once, in neutral terms, and it compiles into whatever the target system speaks:
+
+```yaml
+fields:
+  website:     {hubspot: domain,          salesforce: Website}
+  lifecycle:   {hubspot: lifecyclestage,  salesforce: Type}
+  enriched_at: {hubspot: gtm_enriched_at, salesforce: GTM_Enriched_At__c}
+
+filters:
+  - {field: website,   op: is_known}
+  - {field: lifecycle, op: not_in, value: [customer, evangelist]}
+  - {field: enriched_at, op: older_than_days, value: 90, or_unknown: true}
+```
+
+Becomes SOQL:
+
+```sql
+SELECT Id, Name, Website FROM Account
+WHERE Website != null AND Type NOT IN ('customer', 'evangelist')
+  AND (GTM_Enriched_At__c < 2026-06-12T20:14:45Z OR GTM_Enriched_At__c = null)
+```
+
+...and a HubSpot search body with **two** filter groups, because of something
+worth knowing: HubSpot ANDs the filters inside a group and ORs between groups,
+with no way to express "A AND (B OR C)" directly. So `or_unknown` gets expanded
+into a cross product — `(A AND B) OR (A AND C)` — and the shared conditions are
+repeated into each group. Each `or_unknown` doubles the group count, which is why
+the expansion is capped with an error that explains itself.
+
+That behaviour was measured against a live portal, not assumed: two filters in
+one group returned 0 matches, the same two as separate groups returned 720,776.
+
+**The loop closes on itself.** That `enriched_at` clause reads a field this tool
+*writes*. "Give me accounts I haven't looked at in 90 days" is a question the
+system can answer about its own work, which is what stops a nightly job from
+re-enriching everything every night.
+
+**There's an escape hatch,** because any filter language covering two CRMs will
+eventually fail to express something real. Drop raw HubSpot JSON or a raw SOQL
+`WHERE` clause into the same file and it's used verbatim.
+
+### Preview before you pull
+
+```
+$ gtm-enrich preview --source hubspot
+New prospects with a website via hubspot
+
+— the query that will run —
+POST /crm/v3/objects/companies/search
+{ ...the compiled body... }
+
+Preflight: these company properties do not exist in this portal:
+gtm_enriched_at. HubSpot rejects the whole query without saying which one.
+Run `gtm-enrich fields --dest hubspot` for the list to create.
+```
+
+That preflight exists because of what HubSpot actually returns when you reference
+a property that isn't there:
+
+```json
+{"status": "error", "message": "There was a problem with the request."}
+```
+
+No property name, no hint. So the source reads the portal's property list first
+and names the missing field itself.
+
+## Running it continuously
+
+Same pipeline, three triggers — see [docs/deployment.md](docs/deployment.md).
+
+**Scheduled.** `--since-last-run` records when each run *started* and asks only
+for records modified since. Start rather than finish, so a record changed while a
+run was in flight is caught next time instead of falling into the gap.
+
+**Real-time.** `gtm-enrich serve` runs a webhook service that does four things in
+this order: **verify, deduplicate, enqueue, return.** The order is the design.
+
+- *Verify* first, so an unauthenticated caller can't fill your queue with paid
+  work. HubSpot's v3 signature, with the five-minute replay window enforced.
+- *Deduplicate* next, because providers retry deliveries and you should not pay
+  twice for the same account.
+- *Enqueue* rather than process, because both CRMs want an answer in seconds and
+  enrichment takes twenty or more. The queue is SQLite, so it survives a restart
+  — an in-memory queue loses everything in flight exactly when you'd notice.
+
+**The gotcha:** records are usually created *empty*, and whatever fills in the
+website does so a second later. A naive "on create" trigger sees nothing to
+scrape. So the service listens for the website property *changing*, not just the
+record appearing, and re-queues a job that finds no website with a delay instead
+of dropping it.
 
 ## The soft-404 problem
 
@@ -359,7 +467,7 @@ immediately — that's a config error, not a data error, and it should be loud.
 ## Tests
 
 ```bash
-pytest -q                  # 156 tests, no network, no credentials
+pytest -q                  # 216 tests, no network, no credentials
 ruff check src tests
 ```
 
@@ -371,10 +479,17 @@ and a regression test pinning the raw-vs-cleaned HTML choice above), per-destina
 type coercion, no-op suppression, `Retry-After`
 handling, SOQL injection guards, both providers' refusal paths, token
 normalization across vendors, cache invalidation, and every soft-404 verdict
-including the branded catch-all that no keyword check would catch.
+including the branded catch-all that no keyword check would catch, filter
+compilation for both query languages, cursor paging on both sources, and every
+webhook rejection path — unsigned, tampered, replayed, and redelivered.
 
 ## What this isn't
 
+- **It has never been deployed.** The Dockerfile, the Render blueprint, and the
+  webhook service are written to be wired up, and every part is covered by tests
+  against mocked transports — but no live webhook has ever been pointed at it.
+  The HubSpot *source* is the exception: filter compilation, preflight, and
+  paging were all verified against a real portal.
 - **`crawl4ai` and `apify` have never made a successful call.** `direct` and
   `firecrawl` are live-tested against real sites, and the Anthropic provider is
   live-tested end to end. The other two backends and the OpenAI provider are
@@ -399,8 +514,12 @@ src/gtm_enrich/
 ├── models.py            # typed contract for every stage
 ├── config.py            # .env + env for secrets, YAML for the ops-editable parts
 ├── pipeline.py          # orchestration + caching
+├── filters.py           # one filter → HubSpot search body or SOQL
 ├── mapping.py           # enrichment fields → CRM API names
-├── cli.py               # check / fields / scrape / run
+├── state.py             # run watermarks + webhook event dedupe
+├── cli.py               # check / fields / scrape / probe / preview / run / serve
+├── sources/             # csv · hubspot · salesforce  (where the list comes from)
+├── server/              # webhook service · job queue · worker
 ├── scrape/
 │   ├── fetch.py         # robots, apex/www fallback, cache, page assembly
 │   ├── markdown.py      # HTML → markdown + deterministic signals

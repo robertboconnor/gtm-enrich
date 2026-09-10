@@ -1,0 +1,64 @@
+# The free way to run the scheduled half: no hosting, no container, and the
+# schedule is a file in the repo anyone can read.
+#
+# Disabled on purpose — `workflow_dispatch` only, so it never fires by itself in
+# a fork or a clone. Uncomment the `schedule` block to turn it on, and add the
+# secrets under Settings → Secrets and variables → Actions.
+#
+# It cannot do real-time; webhooks need a service that is always listening.
+
+name: Scheduled enrichment
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max accounts to process"
+        default: "50"
+      destination:
+        description: "dryrun, hubspot, or salesforce"
+        default: "dryrun"
+  # schedule:
+  #   - cron: "0 6 * * *"
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -e .
+
+      # Keeps the page and analysis caches between runs, so a nightly job only
+      # pays for pages that actually changed.
+      - uses: actions/cache@v4
+        with:
+          path: .cache
+          key: gtm-enrich-cache-${{ github.run_id }}
+          restore-keys: gtm-enrich-cache-
+
+      - name: Enrich
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          GTM_SCRAPER: firecrawl
+        run: |
+          gtm-enrich run \
+            --source hubspot \
+            --filter config/filters/new-prospects.yaml \
+            --since-last-run \
+            --dest "${{ inputs.destination || 'dryrun' }}" \
+            --limit "${{ inputs.limit || 50 }}" \
+            --json-out out/results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: enrichment-results
+          path: out/
