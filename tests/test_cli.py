@@ -57,3 +57,49 @@ def test_missing_config_is_a_clean_error() -> None:
     result = runner.invoke(app, ["check", "--icp", "does/not/exist.yaml"])
     assert result.exit_code == 2
     assert "Config error" in result.stdout
+
+
+def test_env_file_is_loaded_and_shown(tmp_path: Path, monkeypatch) -> None:
+    """The .env file has to actually reach os.environ — it silently did not, once."""
+    import gtm_enrich.cli as cli
+    import gtm_enrich.config as config
+
+    monkeypatch.delenv("FIRECRAWL_API_KEY", raising=False)
+    env = tmp_path / ".env"
+    env.write_text("FIRECRAWL_API_KEY=fc-from-dotenv\n")
+    monkeypatch.setattr(config, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(cli, "load_env", lambda: config.load_env(env))
+
+    result = runner.invoke(app, ["check"])
+    assert result.exit_code == 0
+    import os
+
+    assert os.environ["FIRECRAWL_API_KEY"] == "fc-from-dotenv"
+
+
+def test_real_environment_beats_the_env_file(tmp_path: Path, monkeypatch) -> None:
+    """A .env is a convenience, not an override of what CI already set."""
+    from gtm_enrich.config import load_env
+
+    monkeypatch.setenv("FIRECRAWL_API_KEY", "fc-from-shell")
+    env = tmp_path / ".env"
+    env.write_text("FIRECRAWL_API_KEY=fc-from-dotenv\n")
+    load_env(env)
+
+    import os
+
+    assert os.environ["FIRECRAWL_API_KEY"] == "fc-from-shell"
+
+
+def test_check_lists_every_provider_and_backend() -> None:
+    result = runner.invoke(app, ["check"])
+    assert result.exit_code == 0
+    for name in ("anthropic", "openai", "direct", "firecrawl", "crawl4ai", "apify"):
+        assert name in result.stdout
+
+
+def test_run_rejects_an_unknown_scraper_backend() -> None:
+    result = runner.invoke(
+        app, ["run", "--domain", "acme.example", "--scraper", "scrapy", "--no-llm"]
+    )
+    assert "Unknown scraper backend" in result.stdout

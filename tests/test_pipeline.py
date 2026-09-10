@@ -66,9 +66,26 @@ def test_llm_failure_falls_back_to_heuristics(sample_page, icp, settings, monkey
 
     monkeypatch.setattr(pipeline, "analyze_with_llm", boom)
 
-    result = analyze_page(sample_page, icp, settings, use_llm=True, client=object())
+    result = analyze_page(sample_page, icp, settings, use_llm=True, provider=object())
     assert result.ok
     assert result.provenance.analyzer == "heuristic:v1"
+
+
+def test_llm_failure_falls_back_for_every_provider(sample_page, icp, settings, monkeypatch):
+    """A dead vendor degrades to heuristics rather than dropping the record."""
+    import gtm_enrich.pipeline as pipeline
+
+    monkeypatch.setattr(
+        pipeline, "analyze_with_llm",
+        lambda *a, **k: (_ for _ in ()).throw(AnalysisError("429 rate limited")),
+    )
+    for provider_name in ("anthropic", "openai"):
+        object.__setattr__(settings.analyze, "provider", provider_name)
+        result = analyze_page(
+            sample_page, icp, settings, use_llm=True, provider=object(), use_cache=False
+        )
+        assert result.ok
+        assert result.provenance.analyzer == "heuristic:v1"
 
 
 async def test_enrich_domains_preserves_input_order_and_partial_failures(

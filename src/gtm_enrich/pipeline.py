@@ -15,8 +15,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from .analyze.heuristics import analyze_with_heuristics
-from .analyze.llm import AnalysisError, analyze_with_llm, get_client
+from .analyze.llm import AnalysisError, analyze_with_llm, get_provider
 from .analyze.prompt import build_system
+from .analyze.providers import default_model_for
 from .config import IcpProfile, MappingConfig, Settings
 from .destinations import Destination
 from .mapping import MappingError, build_record
@@ -95,12 +96,19 @@ def analyze_page(
     settings: Settings,
     *,
     use_llm: bool,
-    client=None,
+    provider=None,
     use_cache: bool = True,
 ) -> EnrichmentResult:
     """Analyze one already-scraped page. Falls back to heuristics on model failure."""
     page_signals = detect_page_signals(page.links, page.markdown)
-    analyzer = f"llm:{settings.analyze.model}" if use_llm else "heuristic:v1"
+    if use_llm:
+        # The cache key is built from configuration, not from the live provider
+        # object -- the settings are what decide which model runs, and this keeps
+        # the key computable without instantiating an SDK client.
+        model = settings.analyze.model or default_model_for(settings.analyze.provider)
+        analyzer = f"{settings.analyze.provider}:{model}"
+    else:
+        analyzer = "heuristic:v1"
     key = _cache_key(page, analyzer, icp)
 
     if use_cache:
@@ -119,7 +127,7 @@ def analyze_page(
     if use_llm:
         try:
             analysis, provenance = analyze_with_llm(
-                page, page_signals, build_system(icp), settings.analyze, client=client
+                page, page_signals, build_system(icp), settings.analyze, provider=provider
             )
         except AnalysisError as exc:
             log.warning(
@@ -190,14 +198,14 @@ async def enrich_domains(
     if not pages:
         return results
 
-    # One client shared across threads: the SDK is thread-safe and a shared
+    # One provider shared across threads: both SDKs are thread-safe, and a shared
     # client keeps the cached system prompt warm across the batch.
-    client = get_client() if use_llm else None
+    provider = get_provider(settings.analyze) if use_llm else None
 
     def run(page: ScrapedPage) -> EnrichmentResult:
         try:
             result = analyze_page(
-                page, icp, settings, use_llm=use_llm, client=client, use_cache=use_cache
+                page, icp, settings, use_llm=use_llm, provider=provider, use_cache=use_cache
             )
         except Exception as exc:  # noqa: BLE001 - one page must not sink the batch
             log.exception("analysis crashed for %s", page.domain)

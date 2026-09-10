@@ -124,6 +124,27 @@ def extract_links(soup: BeautifulSoup, base_url: str) -> list[PageLink]:
     return out
 
 
+_MD_LINK_RE = re.compile(r"\[([^\]]*)\]\((https?://[^\s)]+|/[^\s)]*)\)")
+
+
+def extract_links_from_markdown(markdown: str, base_url: str) -> list[PageLink]:
+    """Links from markdown, for backends that return no HTML.
+
+    A fallback, not a replacement: markdown has already lost `<link>` and
+    `<script>` tags, so vendor detection is simply unavailable in this path.
+    """
+    seen: set[str] = set()
+    out: list[PageLink] = []
+    for match in _MD_LINK_RE.finditer(markdown):
+        text, href = match.group(1), match.group(2)
+        url = urljoin(base_url, href)
+        if urlparse(url).scheme not in ("http", "https") or url in seen:
+            continue
+        seen.add(url)
+        out.append(PageLink(text=" ".join(text.split())[:120], url=url))
+    return out
+
+
 def detect_tech(html: str, base_url: str) -> list[str]:
     """Vendor fingerprints from asset URLs on the page. Deterministic, no LLM."""
     soup = BeautifulSoup(html, "html.parser")

@@ -1,8 +1,9 @@
-"""Fetching homepages: politely, concurrently, and only once per domain per week.
+"""Fetch orchestration: robots, candidate URLs, caching, and page assembly.
 
-Three things here exist because this is meant to run against real sites owned by
-real people: a declared User-Agent, a robots.txt check before the first request,
-and a disk cache so a re-run costs nobody any bandwidth.
+Deliberately backend-agnostic. Whether the bytes came from httpx, Firecrawl,
+crawl4ai, or an Apify Actor, the same robots check runs first, the same apex/www
+fallback applies, the same cache is consulted, and the same `ScrapedPage` comes
+out the other end.
 """
 
 from __future__ import annotations
@@ -18,12 +19,19 @@ import httpx
 
 from ..config import ScrapeSettings
 from ..models import ScrapedPage, utcnow
-from .markdown import content_hash, detect_tech, extract_links, html_to_markdown
+from .fetchers import Fetcher, FetcherError, build_fetcher
+from .markdown import (
+    content_hash,
+    detect_tech,
+    extract_links,
+    extract_links_from_markdown,
+    html_to_markdown,
+)
 
 log = logging.getLogger(__name__)
 
 _SCHEME_RE = re.compile(r"^https?://", re.IGNORECASE)
-_RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
+MIN_USEFUL_MARKDOWN = 200
 
 
 class FetchError(RuntimeError):
@@ -60,8 +68,8 @@ def candidate_urls(domain: str) -> list[str]:
 class RobotsCache:
     """One robots.txt fetch per host per run, shared across coroutines.
 
-    A host that fails to serve robots.txt is treated as allowing the fetch,
-    which is the same assumption the standard library makes.
+    Checked for every backend, not just the direct one. A hosted scraper has its
+    own compliance story, but the decision to request a page is ours.
     """
 
     def __init__(self, client: httpx.AsyncClient, user_agent: str) -> None:
@@ -129,26 +137,54 @@ def write_cache(settings: ScrapeSettings, page: ScrapedPage) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# fetch
+# page assembly
 # --------------------------------------------------------------------------- #
 
 
-async def _get_with_retries(
-    client: httpx.AsyncClient, url: str, attempts: int = 3
-) -> httpx.Response:
-    last_exc: Exception | None = None
-    for attempt in range(attempts):
-        try:
-            resp = await client.get(url)
-        except httpx.HTTPError as exc:
-            last_exc = exc
-        else:
-            if resp.status_code not in _RETRY_STATUS:
-                return resp
-            last_exc = FetchError(f"HTTP {resp.status_code}")
-        if attempt < attempts - 1:
-            await asyncio.sleep(2**attempt)
-    raise FetchError(f"{url}: {last_exc}")
+def build_page(domain: str, content, settings: ScrapeSettings) -> ScrapedPage:
+    """Turn whatever a backend returned into a `ScrapedPage`.
+
+    Backends that render their own markdown are trusted for it; the HTML, when
+    present, is still parsed for links and vendor fingerprints. A backend that
+    returns markdown only degrades gracefully -- links come from the markdown
+    and `tech_signals` is empty, because the tags it reads no longer exist.
+    """
+    html = content.html
+    title = content.title
+    description = content.description
+    markdown = content.markdown
+
+    if html:
+        converted, meta = html_to_markdown(html, content.final_url, settings.max_markdown_chars)
+        markdown = markdown or converted
+        title = title or meta["title"]
+        description = description or meta["meta_description"]
+
+        from bs4 import BeautifulSoup  # local import keeps module import cheap
+
+        soup = BeautifulSoup(html, "html.parser")
+        links = extract_links(soup, content.final_url)
+        tech_signals = detect_tech(html, content.final_url)
+    else:
+        links = extract_links_from_markdown(markdown or "", content.final_url)
+        tech_signals = []
+
+    markdown = (markdown or "").strip()
+    if len(markdown) > settings.max_markdown_chars:
+        markdown = markdown[: settings.max_markdown_chars].rsplit("\n", 1)[0] + "\n\n_[truncated]_"
+
+    return ScrapedPage(
+        domain=domain,
+        final_url=content.final_url,
+        status_code=content.status_code,
+        fetched_at=utcnow(),
+        title=title,
+        meta_description=description,
+        markdown=markdown,
+        links=links,
+        tech_signals=tech_signals,
+        content_hash=content_hash(markdown),
+    )
 
 
 async def scrape_domain(
@@ -156,6 +192,7 @@ async def scrape_domain(
     robots: RobotsCache,
     domain: str,
     settings: ScrapeSettings,
+    fetcher: Fetcher | None = None,
     *,
     use_cache: bool = True,
 ) -> ScrapedPage:
@@ -166,46 +203,31 @@ async def scrape_domain(
             log.debug("cache hit for %s", domain)
             return cached
 
+    fetcher = fetcher or build_fetcher(settings, client)
+
     errors: list[str] = []
     for url in candidate_urls(domain):
         if settings.respect_robots and not await robots.allowed(url):
             errors.append(f"{url}: disallowed by robots.txt")
             continue
         try:
-            resp = await _get_with_retries(client, url)
-        except FetchError as exc:
+            content = await fetcher.fetch(url)
+        except FetcherError as exc:
             errors.append(str(exc))
             continue
-        if resp.status_code >= 400:
-            errors.append(f"{url}: HTTP {resp.status_code}")
+
+        page = build_page(domain, content, settings)
+        if len(page.markdown) < MIN_USEFUL_MARKDOWN:
+            suffix = (
+                ""
+                if fetcher.renders_javascript
+                else " — try --scraper firecrawl, crawl4ai, or apify, which render JavaScript"
+            )
+            errors.append(
+                f"{url}: page rendered to {len(page.markdown)} chars (likely JS-only){suffix}"
+            )
             continue
 
-        content_type = resp.headers.get("content-type", "")
-        if "html" not in content_type.lower():
-            errors.append(f"{url}: unexpected content-type {content_type!r}")
-            continue
-
-        html = resp.text
-        final_url = str(resp.url)
-        md, meta = html_to_markdown(html, final_url, settings.max_markdown_chars)
-        if len(md) < 200:
-            errors.append(f"{url}: page rendered to {len(md)} chars (likely JS-only)")
-            continue
-
-        from bs4 import BeautifulSoup  # local import keeps module import cheap
-
-        page = ScrapedPage(
-            domain=domain,
-            final_url=final_url,
-            status_code=resp.status_code,
-            fetched_at=utcnow(),
-            title=meta["title"],
-            meta_description=meta["meta_description"],
-            markdown=md,
-            links=extract_links(BeautifulSoup(html, "html.parser"), final_url),
-            tech_signals=detect_tech(html, final_url),
-            content_hash=content_hash(md),
-        )
         write_cache(settings, page)
         return page
 
@@ -242,18 +264,26 @@ async def scrape_many(
 
     async with build_client(settings) as client:
         robots = RobotsCache(client, settings.user_agent)
+        try:
+            fetcher = build_fetcher(settings, client)
+        except FetcherError as exc:
+            # A misconfigured backend is a whole-run problem, not a per-row one.
+            return {d: FetchError(str(exc)) for d in domains}
 
         async def one(domain: str) -> None:
             async with semaphore:
                 try:
                     results[domain] = await scrape_domain(
-                        client, robots, domain, settings, use_cache=use_cache
+                        client, robots, domain, settings, fetcher, use_cache=use_cache
                     )
-                except (FetchError, ValueError) as exc:
+                except (FetchError, FetcherError, ValueError) as exc:
                     results[domain] = FetchError(str(exc))
                 if callable(on_result):
                     on_result(domain, results[domain])
 
-        await asyncio.gather(*(one(d) for d in domains))
+        try:
+            await asyncio.gather(*(one(d) for d in domains))
+        finally:
+            await fetcher.aclose()
 
     return results

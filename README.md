@@ -5,25 +5,43 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Scrape a company's homepage, ask a fixed set of GTM questions about what's there,
-and write the answers back into Salesforce or HubSpot as structured fields.
+and write the answers back into **Salesforce** or **HubSpot** as structured fields.
 
-It's the shape of enrichment problem that usually gets solved with a vendor
-subscription and a Zapier chain: you have a list of domains, you want more than a
-firmographic row about each one, and you want it in the CRM where reps actually
-work. This does it as a small, testable pipeline you own.
+Bring your own scraper (**direct**, **Firecrawl**, **crawl4ai**, or **Apify**) and
+your own model (**Claude** or **GPT**). Point it at your own CRM.
 
-Built as a portfolio project — it runs, it's tested, and the design decisions are
-the interesting part.
+> Built by a RevOps operator. The design bias throughout is **dry-run first**:
+> build the exact payload, show it, write nothing until told to.
 
 ```
 domains ──▶ scrape ──▶ markdown ──▶ analyze ──▶ map ──▶ write
-             │           │            │          │        │
-        robots.txt   deterministic  Claude   config/   HubSpot
-        + caching      signals    structured mapping   Salesforce
-                    (no LLM)       output     .yaml    dry run
+              │           │            │          │        │
+         robots.txt  deterministic  Claude /   config/   HubSpot
+         + caching     signals        GPT      mapping   Salesforce
+                      (no LLM)     structured   .yaml    dry run
 ```
 
----
+## What's in the box
+
+| Piece | What it does |
+| --- | --- |
+| `scrape/fetchers/` | Four fetch backends behind one interface — `direct` (plain HTTP, no key), `firecrawl`, `crawl4ai` (self-hosted), `apify`. Three of them render JavaScript. |
+| `analyze/providers/` | Two LLM providers behind one interface — **Anthropic** and **OpenAI** — both using schema-enforced structured output, plus a keyword fallback that needs no key at all. |
+| `scrape/markdown.py` | HTML → markdown, and the deterministic signals: vendor fingerprints and structural facts, parsed rather than inferred. |
+| `mapping.py` + `config/mapping.yaml` | Enrichment fields → CRM API names, per destination. No field name is hardcoded anywhere. |
+| `config/icp.yaml` | What "good fit" means. Injected into the prompt, so editing it changes every score. |
+| `destinations/` | `dryrun`, `hubspot`, `salesforce` — all sharing one find → diff → write upsert. |
+| `cli.py` | `check`, `fields`, `scrape`, `run`. |
+
+## Requirements
+
+- **Python 3.10+**
+- Optionally an **Anthropic** or **OpenAI** key — without one, runs use the keyword fallback
+- Optionally a **Firecrawl** / **Apify** key or a local **crawl4ai** container — without one, scraping uses plain HTTP
+- Optionally a **HubSpot private app token** or **Salesforce** credentials — without either, writes go to disk
+
+Every backend talks raw HTTP over `httpx`. There is no Firecrawl, crawl4ai, or
+Apify SDK to install.
 
 ## Quick start
 
@@ -35,17 +53,42 @@ gtm-enrich run --domains examples/domains.csv --dest dryrun
 ```
 
 That scrapes five real homepages, analyzes them, and writes the exact payloads it
-*would* send to HubSpot into `out/`. Add an `ANTHROPIC_API_KEY` and the analysis
-step upgrades from keyword matching to actual reading.
+*would* send to HubSpot into `out/`.
 
 ```bash
-gtm-enrich check                      # what's configured, what's missing
-gtm-enrich scrape gong.io             # see the markdown the analyzer sees
-gtm-enrich fields --dest salesforce   # the fields you need to create first
-gtm-enrich run --domain acme.com --dest hubspot
+cp .env.example .env      # then fill in whichever keys you have
+gtm-enrich check          # what's wired up, what isn't, what each thing needs
 ```
 
----
+`check` is the map of the whole system:
+
+```
+                            LLM providers
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃ Provider             ┃ Status  ┃ Default model ┃ Needs             ┃
+┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ anthropic (selected) │ ok      │ claude-opus-5 │ ANTHROPIC_API_KEY │
+│ openai               │ not set │ gpt-5-mini    │ OPENAI_API_KEY    │
+└──────────────────────┴─────────┴───────────────┴───────────────────┘
+                                Scraper backends
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Backend           ┃ Status       ┃ Renders JS ┃ Needs                     ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ direct (selected) │ ok           │ no         │ nothing — built in        │
+│ firecrawl         │ ok           │ yes        │ FIRECRAWL_API_KEY         │
+│ crawl4ai          │ needs server │ yes        │ a running crawl4ai server │
+│ apify             │ not set      │ yes        │ APIFY_API_TOKEN           │
+└───────────────────┴──────────────┴────────────┴───────────────────────────┘
+```
+
+Then mix and match:
+
+```bash
+gtm-enrich scrape gong.io --scraper firecrawl
+gtm-enrich run --domains accounts.csv --provider openai --model gpt-5-nano
+gtm-enrich run --domains accounts.csv --scraper apify --dest hubspot
+gtm-enrich fields --dest salesforce      # the fields to create before a live run
+```
 
 ## What it produces
 
@@ -70,7 +113,7 @@ shape, with LLM analysis enabled:
     "gtm_has_demo_cta": "true",
     "gtm_enriched_from_url": "https://www.gong.io/",
     "gtm_enriched_at": "2026-09-10T17:33:47Z",
-    "gtm_enrichment_source": "llm:claude-opus-5",
+    "gtm_enrichment_source": "anthropic:claude-opus-5",
     "gtm_source_content_hash": "a3f1c8b2e5d40917"
   }
 }
@@ -89,20 +132,14 @@ Plus signals read straight off the HTML, with no model involved: detected vendor
 (HubSpot, Marketo, Segment, Stripe, Webflow, …) and structural facts (has a
 pricing page, a demo CTA, a careers page, case studies, a security page).
 
----
-
 ## The two files an ops person edits
 
 Neither requires touching Python.
 
-**`config/icp.yaml`** — what "good fit" means. It's injected verbatim into the
-analysis prompt, so changing it changes every score:
+**`config/icp.yaml`** — what "good fit" means, injected verbatim into the prompt:
 
 ```yaml
 name: "B2B video platform ICP"
-description: >
-  We sell a video hosting and video marketing platform to B2B software and
-  services companies...
 good_fit:
   - "publishes a blog, webinars, customer stories, or a resource library"
   - "uses a marketing automation platform such as HubSpot or Marketo"
@@ -121,41 +158,56 @@ fields:
 ```
 
 Add a column, that destination starts writing the field. Delete it, it stops.
-Nothing in the code knows what a field is called in your org.
 
 See [docs/crm-setup.md](docs/crm-setup.md) for creating the fields and getting
 credentials in each system.
 
----
-
 ## Design decisions
 
-The parts I'd actually want to talk through in an interview.
+The parts worth talking through.
 
-**Structured outputs, not prompt-and-hope.** The analysis schema is a Pydantic
-model handed to the API as a JSON schema, so the model physically cannot return
-something that fails to parse. That's what makes it safe to write into a CRM with
-no human in the loop — the failure mode is a bad *value*, never a malformed
-record. Every field's docstring is prompt surface area and is written as such.
+**Structured outputs, not prompt-and-hope.** Both providers are handed the same
+Pydantic model as a JSON schema — `output_format` on Anthropic, `text_format` on
+OpenAI — so neither can return something that fails to parse. That is what makes
+it safe to write into a CRM with no human in the loop: the failure mode is a bad
+*value*, never a malformed record. The common alternative — "return ONLY a JSON
+object, no markdown fences" — works until the day it doesn't, and then it fails
+silently as a field that never got set.
+
+**Two vendor interfaces, normalized to one.** `LLMResult` hides more than it
+looks like. OpenAI reports cached tokens *inside* `input_tokens`; Anthropic
+reports them alongside. Anthropic has five effort levels, OpenAI four. Anthropic
+signals refusal via `stop_reason`, OpenAI via an `incomplete` status. All of that
+is absorbed at the provider boundary, so cost accounting means the same thing on
+both and `--effort xhigh` doesn't 400 just because you switched vendor.
+
+**Four scrapers, one contract.** A fetcher answers one question: what is on this
+page? It does not decide *whether* to fetch (robots), *which* URL to try (apex vs
+www), or what to do with the result. Those policies live once, in
+`scrape/fetch.py`, so they are identical no matter which backend you pick. Some
+backends return markdown, some only HTML; `build_page` handles either, and a
+markdown-only backend degrades in a defined way — links still parse, vendor
+detection is empty, because the tags it reads no longer exist.
 
 **Deterministic signals are kept separate from judgement.** A `/pricing` link
 either exists or it doesn't; `js.hs-scripts.com` is either on the page or it
 isn't. Those are extracted with a parser and passed to the model as facts it
 isn't allowed to contradict. Only genuinely interpretive questions — segment, ICP
-fit, category — are left to the model. It shrinks the surface area for
-hallucination and keeps the pipeline useful with the model turned off entirely.
+fit, category — are left to the model. Vendor fingerprints match anchored asset
+URLs, never bare words, so a page that merely *mentions* a vendor on a comparison
+page doesn't count as using it.
 
 **Provenance on every record.** Four fields ride along with every write: source
-URL, timestamp, analyzer version (`llm:claude-opus-5` or `heuristic:v1`), and a
-hash of the page content that produced it. The first time someone disputes a
-score, you can answer where it came from — and the hash tells you whether the
-page has changed since.
+URL, timestamp, analyzer (`anthropic:claude-opus-5`, `openai:gpt-5-nano`, or
+`heuristic:v1`), and a hash of the page content that produced it. The first time
+someone disputes a score, you can answer where it came from — and the hash tells
+you whether the page has changed since.
 
 **Idempotent by construction.** `Destination.upsert` is find → diff → write, and
 the diff normalizes types before comparing, because CRMs round-trip `78` as
 `"78"` and `true` as `"true"`. Re-running the whole batch writes nothing if
-nothing changed. That's implemented once in the base class, so every destination
-gets it — including ones added later.
+nothing changed. Implemented once in the base class, so every destination gets
+it — including ones added later.
 
 **Dry run is a real destination, not a demo mode.** It builds the identical
 payload through the identical mapping and coercion, then writes it to disk
@@ -163,55 +215,68 @@ instead of sending it. `--dest dryrun --shape salesforce` shows you the exact
 Salesforce payload without an org. It's the thing you run *before* a live load.
 
 **Caching at both expensive steps.** Pages are cached for a week; analyses are
-cached against a key of `content hash + analyzer + ICP fingerprint`. Edit
+cached against a key of `content hash + provider:model + ICP fingerprint`. Edit
 `icp.yaml` and every cached score correctly invalidates — same page, different
-question. Re-running a 500-account list after a config change costs one API call
-per account whose page actually changed.
+question. Switch provider and you get a fresh answer rather than a stale one
+attributed to the wrong model.
 
-**Prompt caching is designed for, not bolted on.** The ICP block is byte-identical
-across every domain in a run and carries the cache breakpoint; everything
-per-account goes after it. A 50-account batch pays for the ICP definition once,
-and `cache_read_input_tokens` is rolled into the per-run cost estimate.
+**Prompt caching is designed for, not bolted on.** The ICP block is
+byte-identical across every domain in a run and goes first — carrying an explicit
+cache breakpoint on Anthropic, sitting in the auto-cached prefix on OpenAI.
+Everything per-account goes after it, and cache reads are folded into the
+per-run cost estimate.
+
+**Costs are reported, never invented.** Token counts always print. A dollar
+figure only appears for models with a published price on file; an unlisted model
+reports tokens and says there's no estimate, rather than guessing.
 
 **Politeness, since this hits sites owned by real people.** A declared
-User-Agent, `robots.txt` checked before the first request, bounded concurrency,
-`Retry-After` honoured on rate limits, and a cache so a re-run costs nobody any
-bandwidth.
+User-Agent, `robots.txt` checked before the first request *on every backend*,
+bounded concurrency, `Retry-After` honoured, and a cache so a re-run costs nobody
+any bandwidth. The Apify token goes in a header rather than the `?token=` query
+parameter their examples use, so it stays out of URLs and logs.
 
 **One bad account never sinks a batch.** Invalid domains, fetch failures,
 JavaScript-only pages, model refusals, and CRM field errors all become recorded
-per-row failures. Model failure specifically degrades to the heuristic analyzer
-rather than dropping the record.
+per-row failures. Model failure degrades to the heuristic analyzer rather than
+dropping the record. A misconfigured *backend*, by contrast, fails the whole run
+immediately — that's a config error, not a data error, and it should be loud.
 
----
+## Safety model
+
+- **Dry run is the default.** `--dest dryrun` writes to `out/` and makes no API
+  calls. You have to name a real destination to touch a CRM.
+- **Writes are diffed first.** Nothing is sent unless a value would actually change.
+- **Credentials live in `.env`**, which is gitignored, or in your shell. Real
+  environment variables always beat the file, so CI is never overridden by a
+  stale local `.env`.
+- **Scraped pages and generated payloads** land in `.cache/` and `out/`, both
+  gitignored, so nothing you scrape ends up in git.
+- **`GTM_RESPECT_ROBOTS=1` by default.** Turn it off only for sites you own.
 
 ## Tests
 
 ```bash
-pytest -q     # 84 tests, no network, no credentials
+pytest -q                  # 130 tests, no network, no credentials
 ruff check src tests
 ```
 
-Everything runs against mocked HTTP transports and a stubbed Anthropic client, so
-CI is hermetic. The suite covers the things most likely to break quietly:
-robots.txt refusals, the www fallback, JS-only shells, per-destination type
-coercion, no-op suppression, `Retry-After` handling, SOQL injection guards, the
-refusal path, and cache invalidation.
-
----
+Every test runs against mocked HTTP transports and stubbed SDK clients, so CI is
+hermetic. The suite covers the things most likely to break quietly: robots.txt
+refusals, the www fallback, JS-only shells, all four backends' response shapes
+(including crawl4ai's three response envelopes and Firecrawl's list-valued
+metadata), per-destination type coercion, no-op suppression, `Retry-After`
+handling, SOQL injection guards, both providers' refusal paths, token
+normalization across vendors, and cache invalidation.
 
 ## What this isn't
 
-Worth being straight about the limits:
-
-- **No JavaScript rendering.** Pages that ship an empty `<div id="root">` are
-  detected and skipped rather than silently analyzed as blank. Adding Playwright
-  is the obvious next step and would slot in behind the same `ScrapedPage`.
 - **The homepage only.** No crawling to `/about`, `/pricing`, or `/customers`,
   which is where a lot of the real signal lives.
-- **The heuristic fallback is genuinely crude.** It's keyword matching, it's
-  capped at 0.4 confidence, and it labels itself `heuristic:v1` in provenance so
-  nobody mistakes it for analysis. It exists so the pipeline runs with no API key.
+- **The keyword fallback is genuinely crude.** It's substring matching against a
+  keyword list, it's capped at 0.4 confidence, and it labels itself
+  `heuristic:v1` in provenance so nobody mistakes it for analysis. It exists so
+  the pipeline runs with no API key at all.
 - **The Salesforce matcher uses `Website LIKE`,** which is fine for a POC and
   wrong for a large org. [docs/crm-setup.md](docs/crm-setup.md#3-matching-and-why-you-should-change-it)
   explains the external-ID field you'd use instead.
@@ -221,14 +286,20 @@ Worth being straight about the limits:
 
 ```
 src/gtm_enrich/
-├── models.py          # typed contract for every stage
-├── config.py          # env for secrets, YAML for the ops-editable parts
-├── pipeline.py        # orchestration + caching
-├── mapping.py         # enrichment fields → CRM API names
-├── cli.py             # check / fields / scrape / run
-├── scrape/            # fetch (robots, retries, cache) + HTML → markdown
-├── analyze/           # prompt, Claude structured output, keyword fallback
-└── destinations/      # base upsert cycle, dry run, HubSpot, Salesforce
+├── models.py            # typed contract for every stage
+├── config.py            # .env + env for secrets, YAML for the ops-editable parts
+├── pipeline.py          # orchestration + caching
+├── mapping.py           # enrichment fields → CRM API names
+├── cli.py               # check / fields / scrape / run
+├── scrape/
+│   ├── fetch.py         # robots, apex/www fallback, cache, page assembly
+│   ├── markdown.py      # HTML → markdown + deterministic signals
+│   └── fetchers/        # direct · firecrawl · crawl4ai · apify
+├── analyze/
+│   ├── prompt.py        # the questions, and the cached ICP prefix
+│   ├── heuristics.py    # no-key keyword fallback
+│   └── providers/       # anthropic · openai
+└── destinations/        # base upsert cycle · dryrun · hubspot · salesforce
 ```
 
-MIT licensed.
+MIT — see [LICENSE](LICENSE).

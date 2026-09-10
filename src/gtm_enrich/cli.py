@@ -21,12 +21,14 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from .analyze.providers import PROVIDER_NAMES, default_model_for
 from .config import (
     ConfigError,
     IcpProfile,
     MappingConfig,
     Settings,
-    has_anthropic_credentials,
+    has_llm_credentials,
+    load_env,
 )
 from .destinations import DESTINATIONS, DestinationError, build_destination
 from .destinations.dryrun import DryRunDestination
@@ -34,6 +36,7 @@ from .mapping import mapping_field_names
 from .models import EnrichmentResult
 from .pipeline import enrich_domains, write_results
 from .scrape.fetch import FetchError, RobotsCache, build_client, normalize_domain, scrape_domain
+from .scrape.fetchers import SCRAPER_REQUIREMENTS, SCRAPERS, FetcherError
 
 app = typer.Typer(
     add_completion=False,
@@ -46,6 +49,25 @@ console = Console()
 # --------------------------------------------------------------------------- #
 # helpers
 # --------------------------------------------------------------------------- #
+
+
+def _settings(
+    provider: str | None = None, model: str | None = None, scraper: str | None = None
+) -> Settings:
+    """Build settings from the environment, with CLI flags taking precedence.
+
+    `.env` is loaded first so a local file can supply keys, but it never
+    overrides a variable the shell or CI already set.
+    """
+    load_env()
+    settings = Settings.from_env()
+    if provider:
+        object.__setattr__(settings.analyze, "provider", provider)
+    if model:
+        object.__setattr__(settings.analyze, "model", model)
+    if scraper:
+        object.__setattr__(settings.scrape, "backend", scraper)
+    return settings
 
 
 def _configure_logging(verbose: bool) -> None:
@@ -127,34 +149,83 @@ def check(
     mapping: Path = typer.Option(Path("config/mapping.yaml"), help="Field mapping."),
 ) -> None:
     """Validate config and report which credentials are present."""
+    env_file = load_env()
     settings = Settings.from_env()
     icp_profile, mapping_config = _load_configs(icp, mapping)
+
+    ok, warn = "[green]ok[/green]", "[yellow]not set[/yellow]"
 
     table = Table(title="gtm-enrich check", header_style="bold")
     table.add_column("Item")
     table.add_column("Status")
     table.add_column("Detail", overflow="fold")
 
-    ok, warn = "[green]ok[/green]", "[yellow]not set[/yellow]"
+    table.add_row(
+        ".env",
+        ok if env_file else "[dim]none[/dim]",
+        str(env_file) if env_file else "no .env found — reading the shell environment only",
+    )
     table.add_row("ICP config", ok, f"{icp} — {icp_profile.name}")
     table.add_row("Field mapping", ok, f"{mapping} — {len(mapping_config.fields)} fields")
-
-    llm = has_anthropic_credentials()
-    table.add_row(
-        "Anthropic credentials",
-        ok if llm else warn,
-        f"model {settings.analyze.model}" if llm else "runs will fall back to heuristics",
-    )
-    hs = bool(os.getenv("HUBSPOT_PRIVATE_APP_TOKEN"))
-    table.add_row("HubSpot", ok if hs else warn, "HUBSPOT_PRIVATE_APP_TOKEN")
-    sf = bool(os.getenv("SF_ACCESS_TOKEN") or os.getenv("SF_CLIENT_ID"))
-    table.add_row("Salesforce", ok if sf else warn, "SF_ACCESS_TOKEN or SF_CLIENT_ID")
-    table.add_row("Dry run", ok, f"always available — writes to {settings.output_dir}/")
-
     console.print(table)
-    if not llm:
+
+    # --- analysis providers ---
+    llm_table = Table(title="LLM providers", header_style="bold")
+    llm_table.add_column("Provider")
+    llm_table.add_column("Status")
+    llm_table.add_column("Default model")
+    llm_table.add_column("Needs")
+    any_llm = False
+    for name in PROVIDER_NAMES:
+        available = has_llm_credentials(name)
+        any_llm = any_llm or available
+        marker = " [dim](selected)[/dim]" if name == settings.analyze.provider else ""
+        llm_table.add_row(
+            f"{name}{marker}",
+            ok if available else warn,
+            settings.analyze.model or default_model_for(name),
+            "ANTHROPIC_API_KEY" if name == "anthropic" else "OPENAI_API_KEY",
+        )
+    console.print(llm_table)
+
+    # --- scraper backends ---
+    scrape_table = Table(title="Scraper backends", header_style="bold")
+    scrape_table.add_column("Backend")
+    scrape_table.add_column("Status")
+    scrape_table.add_column("Renders JS")
+    scrape_table.add_column("Needs", overflow="fold")
+    checks = {
+        "direct": True,
+        "firecrawl": bool(os.getenv("FIRECRAWL_API_KEY")),
+        "crawl4ai": True,  # a local server; reachability is only knowable at run time
+        "apify": bool(os.getenv("APIFY_API_TOKEN")),
+    }
+    for name in SCRAPERS:
+        marker = " [dim](selected)[/dim]" if name == settings.scrape.backend else ""
+        status = ok if checks[name] else warn
+        if name == "crawl4ai":
+            status = "[dim]needs server[/dim]"
+        scrape_table.add_row(
+            f"{name}{marker}", status, "no" if name == "direct" else "yes",
+            SCRAPER_REQUIREMENTS[name],
+        )
+    console.print(scrape_table)
+
+    # --- destinations ---
+    dest_table = Table(title="Destinations", header_style="bold")
+    dest_table.add_column("Destination")
+    dest_table.add_column("Status")
+    dest_table.add_column("Needs", overflow="fold")
+    hs = bool(os.getenv("HUBSPOT_PRIVATE_APP_TOKEN"))
+    sf = bool(os.getenv("SF_ACCESS_TOKEN") or os.getenv("SF_CLIENT_ID"))
+    dest_table.add_row("dryrun", ok, f"nothing — writes to {settings.output_dir}/")
+    dest_table.add_row("hubspot", ok if hs else warn, "HUBSPOT_PRIVATE_APP_TOKEN")
+    dest_table.add_row("salesforce", ok if sf else warn, "SF_ACCESS_TOKEN or SF_CLIENT_ID")
+    console.print(dest_table)
+
+    if not any_llm:
         console.print(
-            "\n[dim]No Anthropic credentials found. `run` still works — it will use the "
+            "\n[dim]No LLM credentials found. `run` still works — it will use the "
             "keyword fallback and label the results heuristic:v1.[/dim]"
         )
 
@@ -193,13 +264,14 @@ def fields(
 @app.command()
 def scrape(
     domain: str = typer.Argument(..., help="Domain or URL, e.g. wistia.com."),
+    scraper: str = typer.Option(None, help=f"Fetch backend: {', '.join(SCRAPERS)}."),
     out: Path = typer.Option(None, help="Write the markdown here instead of stdout."),
     no_cache: bool = typer.Option(False, "--no-cache", help="Ignore the page cache."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
     """Fetch one homepage and show the markdown the analyzer will see."""
     _configure_logging(verbose)
-    settings = Settings.from_env()
+    settings = _settings(scraper=scraper)
 
     async def go() -> None:
         normalized = normalize_domain(domain)
@@ -214,6 +286,7 @@ def scrape(
             f"- url: {page.final_url}\n"
             f"- fetched: {page.fetched_at.isoformat()}"
             f"{' (from cache)' if page.from_cache else ''}\n"
+            f"- backend: {settings.scrape.backend}\n"
             f"- vendors detected: {', '.join(page.tech_signals) or 'none'}\n"
             f"- links: {len(page.links)}\n\n---\n\n"
         )
@@ -225,7 +298,7 @@ def scrape(
 
     try:
         asyncio.run(go())
-    except (FetchError, ValueError) as exc:
+    except (FetchError, FetcherError, ValueError) as exc:
         console.print(f"[red]Scrape failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
@@ -238,6 +311,9 @@ def run(
     shape: str = typer.Option(
         "hubspot", help="Which destination's field names a dry run should emulate."
     ),
+    scraper: str = typer.Option(None, help=f"Fetch backend: {', '.join(SCRAPERS)}."),
+    provider: str = typer.Option(None, help=f"LLM provider: {', '.join(PROVIDER_NAMES)}."),
+    model: str = typer.Option(None, help="Override the provider's default model."),
     icp: Path = typer.Option(Path("config/icp.yaml")),
     mapping: Path = typer.Option(Path("config/mapping.yaml")),
     no_llm: bool = typer.Option(False, "--no-llm", help="Force the keyword fallback."),
@@ -248,7 +324,7 @@ def run(
 ) -> None:
     """Scrape, analyze, and write the results to a destination."""
     _configure_logging(verbose)
-    settings = Settings.from_env()
+    settings = _settings(provider=provider, model=model, scraper=scraper)
     icp_profile, mapping_config = _load_configs(icp, mapping)
 
     targets = list(domain or [])
@@ -260,16 +336,23 @@ def run(
     if limit > 0:
         targets = targets[:limit]
 
-    use_llm = not no_llm and has_anthropic_credentials()
+    active_provider = settings.analyze.provider
+    use_llm = not no_llm and has_llm_credentials(active_provider)
     if not no_llm and not use_llm:
         console.print(
-            "[yellow]No Anthropic credentials found — using the keyword fallback.[/yellow]"
+            f"[yellow]No {active_provider} credentials found — using the keyword "
+            "fallback. Run `gtm-enrich check` to see what is missing.[/yellow]"
         )
 
+    analyzer = (
+        f"{active_provider}:{settings.analyze.model or default_model_for(active_provider)}"
+        if use_llm
+        else "heuristic:v1"
+    )
     write_shape = shape if dest == "dryrun" else dest
     console.print(
-        f"[bold]{len(targets)}[/bold] domains → analyzer "
-        f"[bold]{'llm:' + settings.analyze.model if use_llm else 'heuristic:v1'}[/bold] "
+        f"[bold]{len(targets)}[/bold] domains → scraper [bold]{settings.scrape.backend}[/bold] "
+        f"→ analyzer [bold]{analyzer}[/bold] "
         f"→ destination [bold]{dest}[/bold] ({write_shape} field names)"
     )
 
@@ -349,10 +432,12 @@ def _print_write_summary(writes, results, settings) -> None:
         for r in results
         if r.provenance
     )
-    if tokens:
+    if tokens and cost:
+        console.print(f"[dim]{tokens:,} tokens, estimated ${cost:.4f} at list price.[/dim]")
+    elif tokens:
         console.print(
-            f"[dim]{tokens:,} tokens, estimated ${cost:.4f} at "
-            f"{settings.analyze.model} list price.[/dim]"
+            f"[dim]{tokens:,} tokens. No published price on file for this model, "
+            "so no cost estimate.[/dim]"
         )
 
 

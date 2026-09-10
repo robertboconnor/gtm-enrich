@@ -13,19 +13,40 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_DIR = PROJECT_ROOT / "config"
 
-# Priced per 1M tokens, from the Anthropic pricing page. Used only for the
-# cost estimate printed in the run summary.
+# (input, output) USD per 1M tokens, from each vendor's public pricing page.
+# Used only for the estimate printed in the run summary; an unlisted model
+# simply reports token counts with no dollar figure rather than a guess.
 MODEL_PRICING: dict[str, tuple[float, float]] = {
+    # Anthropic
     "claude-opus-5": (5.00, 25.00),
     "claude-sonnet-5": (2.00, 10.00),
     "claude-haiku-4-5": (1.00, 5.00),
+    # OpenAI
+    "gpt-5": (1.25, 10.00),
+    "gpt-5-mini": (0.25, 2.00),
+    "gpt-5-nano": (0.05, 0.40),
 }
 
-DEFAULT_MODEL = "claude-opus-5"
+DEFAULT_PROVIDER = "anthropic"
+DEFAULT_SCRAPER = "direct"
+
+
+def load_env(explicit: Path | None = None) -> Path | None:
+    """Load a .env file into the process environment, once, at startup.
+
+    Real environment variables always win -- a .env is a convenience for local
+    runs, not an override of what CI or a shell already set.
+    """
+    candidate = explicit or (PROJECT_ROOT / ".env")
+    if candidate.is_file():
+        load_dotenv(candidate, override=False)
+        return candidate
+    return None
 
 
 class ConfigError(RuntimeError):
@@ -34,6 +55,9 @@ class ConfigError(RuntimeError):
 
 @dataclass(frozen=True)
 class ScrapeSettings:
+    # Which fetch backend renders the page. "direct" needs nothing; the rest are
+    # hosted or self-hosted services that handle JavaScript for you.
+    backend: str = DEFAULT_SCRAPER
     user_agent: str = (
         "gtm-enrich/0.1 (+https://github.com/robertboconnor/gtm-enrich; "
         "homepage enrichment POC)"
@@ -46,14 +70,22 @@ class ScrapeSettings:
     cache_dir: Path = PROJECT_ROOT / ".cache" / "pages"
     cache_ttl_hours: int = 24 * 7
 
+    # Backend-specific endpoints. Only the one you select is ever read.
+    firecrawl_api_url: str = "https://api.firecrawl.dev/v2/scrape"
+    crawl4ai_api_url: str = "http://localhost:11235/crawl"
+    apify_actor_id: str = "apify~website-content-crawler"
+
 
 @dataclass(frozen=True)
 class AnalyzeSettings:
-    model: str = DEFAULT_MODEL
+    provider: str = DEFAULT_PROVIDER
+    # None means "whatever this provider's default is", so switching provider
+    # does not also require picking a model.
+    model: str | None = None
     effort: str = "medium"
     max_tokens: int = 8_000
-    # Server-side refusal fallback: on a policy decline the API retries the same
-    # request on a fallback model inside the same call instead of returning nothing.
+    # Anthropic only: on a policy decline the API retries the same request on a
+    # fallback model inside the same call instead of returning nothing.
     enable_fallbacks: bool = True
 
 
@@ -76,12 +108,19 @@ class Settings:
 
         return cls(
             scrape=ScrapeSettings(
+                backend=os.getenv("GTM_SCRAPER", DEFAULT_SCRAPER),
                 timeout_seconds=_f("GTM_SCRAPE_TIMEOUT", 20.0),
                 concurrency=_i("GTM_SCRAPE_CONCURRENCY", 5),
                 respect_robots=os.getenv("GTM_RESPECT_ROBOTS", "1") != "0",
+                firecrawl_api_url=os.getenv(
+                    "FIRECRAWL_API_URL", "https://api.firecrawl.dev/v2/scrape"
+                ),
+                crawl4ai_api_url=os.getenv("CRAWL4AI_API_URL", "http://localhost:11235/crawl"),
+                apify_actor_id=os.getenv("APIFY_ACTOR_ID", "apify~website-content-crawler"),
             ),
             analyze=AnalyzeSettings(
-                model=os.getenv("GTM_MODEL", DEFAULT_MODEL),
+                provider=os.getenv("GTM_LLM_PROVIDER", DEFAULT_PROVIDER),
+                model=os.getenv("GTM_MODEL") or None,
                 effort=os.getenv("GTM_EFFORT", "medium"),
                 enable_fallbacks=os.getenv("GTM_ENABLE_FALLBACKS", "1") != "0",
             ),
@@ -100,6 +139,18 @@ def has_anthropic_credentials() -> bool:
         return True
     profile_dir = Path.home() / ".config" / "anthropic"
     return profile_dir.is_dir() and any(profile_dir.glob("*.json"))
+
+
+def has_openai_credentials() -> bool:
+    return bool(os.getenv("OPENAI_API_KEY"))
+
+
+def has_llm_credentials(provider: str) -> bool:
+    """Whether the named provider can authenticate right now."""
+    return {
+        "anthropic": has_anthropic_credentials,
+        "openai": has_openai_credentials,
+    }.get(provider, lambda: False)()
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
