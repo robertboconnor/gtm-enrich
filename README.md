@@ -144,6 +144,10 @@ shape, with LLM analysis enabled:
 The dry-run destination writes exactly this to `out/payloads-*.json`, alongside a
 flat CSV for anyone who'd rather look at it in a spreadsheet.
 
+**[Real output from a real run is committed in `examples/output/`](examples/output/)**
+— the same five accounts in both HubSpot and Salesforce shape, so you can see what
+one enrichment looks like on the way into two different systems.
+
 ### The questions it answers
 
 Company name · one-line description · product category · B2B/B2C · size segment ·

@@ -1,0 +1,473 @@
+{
+  "results": [
+    {
+      "domain": "stripe.com",
+      "ok": true,
+      "analysis": {
+        "company_name": "Stripe",
+        "one_liner": "Stripe is a financial services platform that helps all types of businesses accept payments, build flexible billing models, and manage money movement.",
+        "category": "payments",
+        "sells_to": "B2B",
+        "segment": "Enterprise",
+        "business_model": "SaaS",
+        "industries_served": [
+          "fintech",
+          "financial services",
+          "retail",
+          "legal",
+          "insurance",
+          "nonprofit",
+          "hospitality",
+          "media"
+        ],
+        "icp_fit_score": 54,
+        "icp_fit_rationale": "Heuristic keyword match only -- no model was used. 1 good-fit and 0 poor-fit ICP terms found on the page.",
+        "buying_signals": [
+          "Careers page is live (hiring)",
+          "Recent product launch language on the homepage"
+        ],
+        "disqualifiers": [],
+        "primary_cta": "Contact sales",
+        "confidence": 0.4,
+        "evidence": [
+          {
+            "claim": "one_liner",
+            "quote": "Stripe is a financial services platform that helps all types of businesses accept payments, build flexible billing models, and manage money movement."
+          },
+          {
+            "claim": "category",
+            "quote": "- Products\n- Solutions\n- Developers\n- Resources\n- Pricinghttps://stripe.com/pricing\n- Sign inhttps://dashboard.stripe.com/login"
+          }
+        ]
+      },
+      "provenance": {
+        "source_url": "https://stripe.com/",
+        "scraped_at": "2026-09-10 18:29:01.916038+00:00",
+        "analyzed_at": "2026-09-10 18:29:02.167354+00:00",
+        "analyzer": "heuristic:v1",
+        "content_hash": "b78de7d3d49e1b19",
+        "input_tokens": null,
+        "output_tokens": null,
+        "cost_usd": null
+      },
+      "tech_signals": [
+        "Google Tag Manager",
+        "Next.js"
+      ],
+      "page_signals": {
+        "has_pricing_page": true,
+        "has_demo_cta": false,
+        "has_free_trial": false,
+        "has_careers_page": true,
+        "has_login": true,
+        "has_blog": true,
+        "has_case_studies": true,
+        "has_security_page": false,
+        "has_integrations": true,
+        "has_contact_sales": true
+      },
+      "error": null
+    },
+    {
+      "domain": "linear.app",
+      "ok": true,
+      "analysis": {
+        "company_name": "Linear",
+        "one_liner": "Purpose-built for planning and building products with AI agents.",
+        "category": "developer tools",
+        "sells_to": "B2B",
+        "segment": "Mixed",
+        "business_model": "SaaS",
+        "industries_served": [
+          "legal"
+        ],
+        "icp_fit_score": 54,
+        "icp_fit_rationale": "Heuristic keyword match only -- no model was used. 1 good-fit and 0 poor-fit ICP terms found on the page.",
+        "buying_signals": [
+          "Careers page is live (hiring)",
+          "Recent product launch language on the homepage"
+        ],
+        "disqualifiers": [],
+        "primary_cta": "Start a free trial",
+        "confidence": 0.4,
+        "evidence": [
+          {
+            "claim": "one_liner",
+            "quote": "Purpose-built for planning and building products with AI agents."
+          },
+          {
+            "claim": "category",
+            "quote": "Skip to content \u2192https://linear.app/skip-nav"
+          }
+        ]
+      },
+      "provenance": {
+        "source_url": "https://linear.app/",
+        "scraped_at": "2026-09-10 18:29:01.763712+00:00",
+        "analyzed_at": "2026-09-10 18:29:02.162669+00:00",
+        "analyzer": "heuristic:v1",
+        "content_hash": "1e3055819bdf1709",
+        "input_tokens": null,
+        "output_tokens": null,
+        "cost_usd": null
+      },
+      "tech_signals": [
+        "Next.js"
+      ],
+      "page_signals": {
+        "has_pricing_page": true,
+        "has_demo_cta": false,
+        "has_free_trial": true,
+        "has_careers_page": true,
+        "has_login": true,
+        "has_blog": true,
+        "has_case_studies": true,
+        "has_security_page": true,
+        "has_integrations": true,
+        "has_contact_sales": true
+      },
+      "error": null
+    },
+    {
+      "domain": "gong.io",
+      "ok": true,
+      "analysis": {
+        "company_name": "Gong",
+        "one_liner": "Gong Revenue AI OS helps your entire GTM organization win. Drive growth with multimodal revenue signal processing, specialized AI agents, and purpose-built applications.",
+        "category": "crm",
+        "sells_to": "B2B",
+        "segment": "Unclear",
+        "business_model": "SaaS",
+        "industries_served": [
+          "healthcare",
+          "financial services",
+          "education",
+          "manufacturing",
+          "legal",
+          "media"
+        ],
+        "icp_fit_score": 67,
+        "icp_fit_rationale": "Heuristic keyword match only -- no model was used. 4 good-fit and 0 poor-fit ICP terms found on the page.",
+        "buying_signals": [
+          "Careers page is live (hiring)",
+          "Analyst or review-site recognition claimed"
+        ],
+        "disqualifiers": [],
+        "primary_cta": "Book a demo",
+        "confidence": 0.4,
+        "evidence": [
+          {
+            "claim": "one_liner",
+            "quote": "Gong Revenue AI OS helps your entire GTM organization win. Drive growth with multimodal revenue signal processing, specialized AI agents, and purpose-built applications."
+          },
+          {
+            "claim": "category",
+            "quote": "The future of revenue is being built at Celebrate \u201826, Sept 29\u2013Oct 1, in Las Vegas."
+          }
+        ]
+      },
+      "provenance": {
+        "source_url": "https://www.gong.io/",
+        "scraped_at": "2026-09-10 18:29:02.150922+00:00",
+        "analyzed_at": "2026-09-10 18:29:02.173179+00:00",
+        "analyzer": "heuristic:v1",
+        "content_hash": "389cec897b602ba1",
+        "input_tokens": null,
+        "output_tokens": null,
+        "cost_usd": null
+      },
+      "tech_signals": [
+        "Google Tag Manager",
+        "Next.js",
+        "OneTrust"
+      ],
+      "page_signals": {
+        "has_pricing_page": true,
+        "has_demo_cta": true,
+        "has_free_trial": false,
+        "has_careers_page": true,
+        "has_login": true,
+        "has_blog": true,
+        "has_case_studies": true,
+        "has_security_page": true,
+        "has_integrations": false,
+        "has_contact_sales": true
+      },
+      "error": null
+    },
+    {
+      "domain": "wistia.com",
+      "ok": true,
+      "analysis": {
+        "company_name": "Wistia",
+        "one_liner": "Wistia is the video marketing platform for business. Create, host, market, and measure video content with our collaborative tools, and thrive with video.",
+        "category": "video platform",
+        "sells_to": "B2B",
+        "segment": "Enterprise",
+        "business_model": "SaaS",
+        "industries_served": [
+          "education",
+          "media"
+        ],
+        "icp_fit_score": 42,
+        "icp_fit_rationale": "Heuristic keyword match only -- no model was used. 5 good-fit and 2 poor-fit ICP terms found on the page.",
+        "buying_signals": [
+          "Careers page is live (hiring)",
+          "Funding mentioned on the homepage"
+        ],
+        "disqualifiers": [
+          "Poor-fit ICP terms present: video hosting, video player"
+        ],
+        "primary_cta": "Book a demo",
+        "confidence": 0.4,
+        "evidence": [
+          {
+            "claim": "one_liner",
+            "quote": "Wistia is the video marketing platform for business. Create, host, market, and measure video content with our collaborative tools, and thrive with video."
+          },
+          {
+            "claim": "category",
+            "quote": "Catch Wistia at UNBOUND 2026https://wistia.com/explore/unbound2026"
+          }
+        ]
+      },
+      "provenance": {
+        "source_url": "https://wistia.com/",
+        "scraped_at": "2026-09-10 18:29:01.338942+00:00",
+        "analyzed_at": "2026-09-10 18:29:02.176552+00:00",
+        "analyzer": "heuristic:v1",
+        "content_hash": "800b17d5f936323b",
+        "input_tokens": null,
+        "output_tokens": null,
+        "cost_usd": null
+      },
+      "tech_signals": [
+        "Google Tag Manager",
+        "Next.js",
+        "Wistia"
+      ],
+      "page_signals": {
+        "has_pricing_page": true,
+        "has_demo_cta": true,
+        "has_free_trial": true,
+        "has_careers_page": true,
+        "has_login": true,
+        "has_blog": true,
+        "has_case_studies": false,
+        "has_security_page": true,
+        "has_integrations": true,
+        "has_contact_sales": true
+      },
+      "error": null
+    },
+    {
+      "domain": "notion.so",
+      "ok": true,
+      "analysis": {
+        "company_name": "Notion",
+        "one_liner": "Build Custom Agents, search across all your apps, and automate busywork. The AI workspace where teams get more done, faster.",
+        "category": "developer tools",
+        "sells_to": "B2B",
+        "segment": "Mixed",
+        "business_model": "SaaS",
+        "industries_served": [],
+        "icp_fit_score": 59,
+        "icp_fit_rationale": "Heuristic keyword match only -- no model was used. 2 good-fit and 0 poor-fit ICP terms found on the page.",
+        "buying_signals": [
+          "Careers page is live (hiring)"
+        ],
+        "disqualifiers": [],
+        "primary_cta": "Book a demo",
+        "confidence": 0.4,
+        "evidence": [
+          {
+            "claim": "one_liner",
+            "quote": "Build Custom Agents, search across all your apps, and automate busywork. The AI workspace where teams get more done, faster."
+          },
+          {
+            "claim": "category",
+            "quote": "Notion \u2013 Homehttps://www.notion.com/product"
+          }
+        ]
+      },
+      "provenance": {
+        "source_url": "https://www.notion.com/",
+        "scraped_at": "2026-09-10 18:29:01.967080+00:00",
+        "analyzed_at": "2026-09-10 18:29:02.179599+00:00",
+        "analyzer": "heuristic:v1",
+        "content_hash": "359d6db72c5f7509",
+        "input_tokens": null,
+        "output_tokens": null,
+        "cost_usd": null
+      },
+      "tech_signals": [
+        "Next.js"
+      ],
+      "page_signals": {
+        "has_pricing_page": true,
+        "has_demo_cta": true,
+        "has_free_trial": true,
+        "has_careers_page": true,
+        "has_login": true,
+        "has_blog": true,
+        "has_case_studies": true,
+        "has_security_page": true,
+        "has_integrations": false,
+        "has_contact_sales": true
+      },
+      "error": null
+    }
+  ],
+  "writes": [
+    {
+      "domain": "stripe.com",
+      "destination": "dryrun:salesforce",
+      "action": "would_create",
+      "record_id": null,
+      "changed_fields": [
+        "GTM_Business_Model__c",
+        "GTM_Buying_Signals__c",
+        "GTM_Category__c",
+        "GTM_Enriched_At__c",
+        "GTM_Enriched_From_URL__c",
+        "GTM_Enrichment_Confidence__c",
+        "GTM_Enrichment_Source__c",
+        "GTM_Has_Careers_Page__c",
+        "GTM_Has_Demo_CTA__c",
+        "GTM_Has_Pricing_Page__c",
+        "GTM_ICP_Fit_Rationale__c",
+        "GTM_ICP_Fit_Score__c",
+        "GTM_Industries_Served__c",
+        "GTM_One_Liner__c",
+        "GTM_Primary_CTA__c",
+        "GTM_Segment__c",
+        "GTM_Sells_To__c",
+        "GTM_Source_Content_Hash__c",
+        "GTM_Tech_Signals__c",
+        "Name",
+        "Website"
+      ],
+      "error": null
+    },
+    {
+      "domain": "linear.app",
+      "destination": "dryrun:salesforce",
+      "action": "would_create",
+      "record_id": null,
+      "changed_fields": [
+        "GTM_Business_Model__c",
+        "GTM_Buying_Signals__c",
+        "GTM_Category__c",
+        "GTM_Enriched_At__c",
+        "GTM_Enriched_From_URL__c",
+        "GTM_Enrichment_Confidence__c",
+        "GTM_Enrichment_Source__c",
+        "GTM_Has_Careers_Page__c",
+        "GTM_Has_Demo_CTA__c",
+        "GTM_Has_Pricing_Page__c",
+        "GTM_ICP_Fit_Rationale__c",
+        "GTM_ICP_Fit_Score__c",
+        "GTM_Industries_Served__c",
+        "GTM_One_Liner__c",
+        "GTM_Primary_CTA__c",
+        "GTM_Segment__c",
+        "GTM_Sells_To__c",
+        "GTM_Source_Content_Hash__c",
+        "GTM_Tech_Signals__c",
+        "Name",
+        "Website"
+      ],
+      "error": null
+    },
+    {
+      "domain": "gong.io",
+      "destination": "dryrun:salesforce",
+      "action": "would_create",
+      "record_id": null,
+      "changed_fields": [
+        "GTM_Business_Model__c",
+        "GTM_Buying_Signals__c",
+        "GTM_Category__c",
+        "GTM_Enriched_At__c",
+        "GTM_Enriched_From_URL__c",
+        "GTM_Enrichment_Confidence__c",
+        "GTM_Enrichment_Source__c",
+        "GTM_Has_Careers_Page__c",
+        "GTM_Has_Demo_CTA__c",
+        "GTM_Has_Pricing_Page__c",
+        "GTM_ICP_Fit_Rationale__c",
+        "GTM_ICP_Fit_Score__c",
+        "GTM_Industries_Served__c",
+        "GTM_One_Liner__c",
+        "GTM_Primary_CTA__c",
+        "GTM_Segment__c",
+        "GTM_Sells_To__c",
+        "GTM_Source_Content_Hash__c",
+        "GTM_Tech_Signals__c",
+        "Name",
+        "Website"
+      ],
+      "error": null
+    },
+    {
+      "domain": "wistia.com",
+      "destination": "dryrun:salesforce",
+      "action": "would_create",
+      "record_id": null,
+      "changed_fields": [
+        "GTM_Business_Model__c",
+        "GTM_Buying_Signals__c",
+        "GTM_Category__c",
+        "GTM_Disqualifiers__c",
+        "GTM_Enriched_At__c",
+        "GTM_Enriched_From_URL__c",
+        "GTM_Enrichment_Confidence__c",
+        "GTM_Enrichment_Source__c",
+        "GTM_Has_Careers_Page__c",
+        "GTM_Has_Demo_CTA__c",
+        "GTM_Has_Pricing_Page__c",
+        "GTM_ICP_Fit_Rationale__c",
+        "GTM_ICP_Fit_Score__c",
+        "GTM_Industries_Served__c",
+        "GTM_One_Liner__c",
+        "GTM_Primary_CTA__c",
+        "GTM_Segment__c",
+        "GTM_Sells_To__c",
+        "GTM_Source_Content_Hash__c",
+        "GTM_Tech_Signals__c",
+        "Name",
+        "Website"
+      ],
+      "error": null
+    },
+    {
+      "domain": "notion.so",
+      "destination": "dryrun:salesforce",
+      "action": "would_create",
+      "record_id": null,
+      "changed_fields": [
+        "GTM_Business_Model__c",
+        "GTM_Buying_Signals__c",
+        "GTM_Category__c",
+        "GTM_Enriched_At__c",
+        "GTM_Enriched_From_URL__c",
+        "GTM_Enrichment_Confidence__c",
+        "GTM_Enrichment_Source__c",
+        "GTM_Has_Careers_Page__c",
+        "GTM_Has_Demo_CTA__c",
+        "GTM_Has_Pricing_Page__c",
+        "GTM_ICP_Fit_Rationale__c",
+        "GTM_ICP_Fit_Score__c",
+        "GTM_One_Liner__c",
+        "GTM_Primary_CTA__c",
+        "GTM_Segment__c",
+        "GTM_Sells_To__c",
+        "GTM_Source_Content_Hash__c",
+        "GTM_Tech_Signals__c",
+        "Name",
+        "Website"
+      ],
+      "error": null
+    }
+  ]
+}
