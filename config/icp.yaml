@@ -1,0 +1,64 @@
+# The ICP definition. This is the file a RevOps person edits -- it is injected
+# verbatim into the analysis prompt and also drives the heuristic fallback's
+# keyword scoring, so changing it changes scores without touching any Python.
+#
+# Swap this whole file out per campaign, per segment, or per product line.
+
+name: "B2B video platform ICP"
+
+description: >
+  We sell a video hosting and video marketing platform to B2B software and
+  services companies. The buyer is a marketing leader who already produces
+  video and needs hosting, analytics, and lead capture that feed the CRM.
+  A great account already treats content as a demand-gen channel and has
+  enough marketing headcount to run it.
+
+good_fit:
+  - "B2B SaaS or B2B services company"
+  - "publishes a blog, webinars, customer stories, or a resource library"
+  - "already embeds video on marketing pages"
+  - "runs demand generation with gated content and forms"
+  - "uses a marketing automation platform such as HubSpot or Marketo"
+  - "50 to 2000 employees, mid-market rather than enterprise procurement"
+  - "has a pricing page and a self-serve or demo-led funnel"
+
+poor_fit:
+  - "consumer social or entertainment streaming"
+  - "video hosting or video platform competitor"
+  - "pre-launch, stealth, or a placeholder landing page"
+  - "agency reselling to many small clients"
+  - "regulated buyer requiring on-premise deployment only"
+
+scoring_notes: >
+  80-100: clearly runs content marketing at scale and shows video on the page.
+  60-79: right shape of company, but no direct evidence of a video program.
+  40-59: plausible but the page is generic or the segment is unclear.
+  0-39: wrong segment, a competitor, or too little on the page to judge.
+
+# Literal strings the keyword fallback greps for when no model is available.
+# These are NOT sent to the model -- the prose above is. Two consumers, two
+# formats: a model reasons about "publishes a resource library", a regex can
+# only look for the words that actually appear on a page.
+heuristic_keywords:
+  good:
+    - "webinar"
+    - "case study"
+    - "customer story"
+    - "resource library"
+    - "demand generation"
+    - "book a demo"
+    - "request a demo"
+    - "marketing team"
+    - "hubspot"
+    - "marketo"
+    - "for teams"
+    - "free trial"
+    - "watch the video"
+  poor:
+    - "video hosting"
+    - "video player"
+    - "live streaming"
+    - "coming soon"
+    - "stealth mode"
+    - "for creators"
+    - "our agency"

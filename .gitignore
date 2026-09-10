@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+
+# Runtime output — scraped pages, analyses, and generated payloads
+.cache/
+out/
+
+# Secrets
+.env
+.env.local
+
+# macOS
+.DS_Store

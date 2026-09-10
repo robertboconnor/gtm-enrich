@@ -1,0 +1,127 @@
+# Field mapping: enrichment output -> CRM API names.
+#
+# Nothing in the Python knows what a field is called in your org. Add a column
+# for a destination and that destination starts writing the field; delete the
+# column and it stops. `source` uses dotted paths into the enrichment result.
+#
+# Salesforce names assume custom fields on Account; HubSpot names assume custom
+# properties on the company object. Both are created by scripts/ or by hand --
+# see docs/crm-setup.md.
+
+objects:
+  hubspot: companies
+  salesforce: Account
+
+# Field used to find an existing record before writing. See docs/crm-setup.md
+# for why a dedicated external-ID field beats matching on Website in Salesforce.
+match_keys:
+  hubspot: domain
+  salesforce: Website
+
+fields:
+  - source: analysis.company_name
+    type: string
+    hubspot: name
+    salesforce: Name
+
+  - source: analysis.one_liner
+    type: string
+    hubspot: gtm_one_liner
+    salesforce: GTM_One_Liner__c
+
+  - source: analysis.category
+    type: string
+    hubspot: gtm_category
+    salesforce: GTM_Category__c
+
+  - source: analysis.sells_to
+    type: string
+    hubspot: gtm_sells_to
+    salesforce: GTM_Sells_To__c
+
+  - source: analysis.segment
+    type: string
+    hubspot: gtm_segment
+    salesforce: GTM_Segment__c
+
+  - source: analysis.business_model
+    type: string
+    hubspot: gtm_business_model
+    salesforce: GTM_Business_Model__c
+
+  - source: analysis.industries_served
+    type: list
+    hubspot: gtm_industries_served
+    salesforce: GTM_Industries_Served__c
+
+  - source: analysis.icp_fit_score
+    type: number
+    hubspot: gtm_icp_fit_score
+    salesforce: GTM_ICP_Fit_Score__c
+
+  - source: analysis.icp_fit_rationale
+    type: string
+    hubspot: gtm_icp_fit_rationale
+    salesforce: GTM_ICP_Fit_Rationale__c
+
+  - source: analysis.buying_signals
+    type: list
+    hubspot: gtm_buying_signals
+    salesforce: GTM_Buying_Signals__c
+
+  - source: analysis.disqualifiers
+    type: list
+    hubspot: gtm_disqualifiers
+    salesforce: GTM_Disqualifiers__c
+
+  - source: analysis.primary_cta
+    type: string
+    hubspot: gtm_primary_cta
+    salesforce: GTM_Primary_CTA__c
+
+  - source: analysis.confidence
+    type: number
+    hubspot: gtm_enrichment_confidence
+    salesforce: GTM_Enrichment_Confidence__c
+
+  - source: tech_signals
+    type: list
+    hubspot: gtm_tech_signals
+    salesforce: GTM_Tech_Signals__c
+
+  - source: page_signals.has_pricing_page
+    type: boolean
+    hubspot: gtm_has_pricing_page
+    salesforce: GTM_Has_Pricing_Page__c
+
+  - source: page_signals.has_demo_cta
+    type: boolean
+    hubspot: gtm_has_demo_cta
+    salesforce: GTM_Has_Demo_CTA__c
+
+  - source: page_signals.has_careers_page
+    type: boolean
+    hubspot: gtm_has_careers_page
+    salesforce: GTM_Has_Careers_Page__c
+
+  # Provenance. Write these or you will not be able to answer "where did this
+  # value come from" the first time someone disputes a score.
+  - source: provenance.source_url
+    type: string
+    hubspot: gtm_enriched_from_url
+    salesforce: GTM_Enriched_From_URL__c
+
+  - source: provenance.analyzed_at
+    type: datetime
+    hubspot: gtm_enriched_at
+    salesforce: GTM_Enriched_At__c
+
+  - source: provenance.analyzer
+    type: string
+    hubspot: gtm_enrichment_source
+    salesforce: GTM_Enrichment_Source__c
+
+  - source: provenance.content_hash
+    type: string
+    hubspot: gtm_source_content_hash
+    salesforce: GTM_Source_Content_Hash__c
