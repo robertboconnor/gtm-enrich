@@ -422,22 +422,38 @@ def _print_write_summary(writes, results, settings) -> None:
         if w.action == "failed":
             console.print(f"  [red]{w.domain}[/red]: {w.error}")
 
-    cost = sum(
-        r.provenance.cost_usd or 0.0
-        for r in results
-        if r.provenance and r.provenance.cost_usd
-    )
-    tokens = sum(
-        (r.provenance.input_tokens or 0) + (r.provenance.output_tokens or 0)
-        for r in results
-        if r.provenance
-    )
-    if tokens and cost:
-        console.print(f"[dim]{tokens:,} tokens, estimated ${cost:.4f} at list price.[/dim]")
+    def totals(rows) -> tuple[int, float, bool]:
+        tokens = sum(
+            (r.provenance.input_tokens or 0) + (r.provenance.output_tokens or 0)
+            for r in rows
+            if r.provenance
+        )
+        cost = sum(r.provenance.cost_usd or 0.0 for r in rows if r.provenance)
+        priced = any(r.provenance and r.provenance.cost_usd for r in rows)
+        return tokens, cost, priced
+
+    analyzed = [r for r in results if r.provenance and not r.from_cache]
+    replayed = [r for r in results if r.provenance and r.from_cache]
+
+    tokens, cost, priced = totals(analyzed)
+    if tokens and priced:
+        console.print(
+            f"[dim]{tokens:,} tokens this run, estimated ${cost:.4f} at list price.[/dim]"
+        )
     elif tokens:
         console.print(
-            f"[dim]{tokens:,} tokens. No published price on file for this model, "
+            f"[dim]{tokens:,} tokens this run. No published price on file for this model, "
             "so no cost estimate.[/dim]"
+        )
+
+    if replayed:
+        # Spend that already happened. Printing it as though it were incurred
+        # again is how a caching tool ends up looking like it isn't caching.
+        rtokens, rcost, rpriced = totals(replayed)
+        detail = f" (originally {rtokens:,} tokens, ${rcost:.4f})" if rtokens and rpriced else ""
+        console.print(
+            f"[dim]{len(replayed)} of {len(results)} served from the analysis cache — "
+            f"no API call, no new spend{detail}.[/dim]"
         )
 
 

@@ -153,6 +153,10 @@ class EnrichmentResult(BaseModel):
     tech_signals: list[str] = Field(default_factory=list)
     page_signals: dict[str, bool] = Field(default_factory=dict)
     error: str | None = None
+    # True when the analysis was replayed from cache rather than recomputed.
+    # The provenance still carries the token counts from the original call, so
+    # without this flag a re-run looks like it spent the money a second time.
+    from_cache: bool = False
 
     @property
     def summary_line(self) -> str:

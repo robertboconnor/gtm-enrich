@@ -169,3 +169,16 @@ async def test_duplicate_domains_are_scraped_once(sample_page, icp, settings, mo
     )
     assert scraped == [["acme.example"]]
     assert len(results) == 1
+
+
+def test_cached_results_are_flagged_so_spend_is_not_double_counted(
+    sample_page, icp, settings
+) -> None:
+    """Provenance keeps the original token counts, so a replay must announce itself."""
+    first = analyze_page(sample_page, icp, settings, use_llm=False)
+    second = analyze_page(sample_page, icp, settings, use_llm=False)
+
+    assert first.from_cache is False
+    assert second.from_cache is True
+    # Same recorded provenance — which is exactly why the flag has to exist.
+    assert first.provenance.content_hash == second.provenance.content_hash

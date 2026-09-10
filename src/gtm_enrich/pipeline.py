@@ -122,6 +122,7 @@ def analyze_page(
                 provenance=provenance,
                 tech_signals=page.tech_signals,
                 page_signals=page_signals,
+                from_cache=True,
             )
 
     if use_llm:

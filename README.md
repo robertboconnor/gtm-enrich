@@ -145,8 +145,10 @@ The dry-run destination writes exactly this to `out/payloads-*.json`, alongside 
 flat CSV for anyone who'd rather look at it in a spreadsheet.
 
 **[Real output from a real run is committed in `examples/output/`](examples/output/)**
-— the same five accounts in both HubSpot and Salesforce shape, so you can see what
-one enrichment looks like on the way into two different systems.
+— five accounts scraped through Firecrawl and analyzed by `claude-opus-5`, in both
+HubSpot and Salesforce shape, so you can see what one enrichment looks like on the
+way into two different systems. Including the account that scored **2 out of 100**
+because the model recognized it as a direct competitor.
 
 ### The questions it answers
 
@@ -263,7 +265,10 @@ per-run cost estimate.
 
 **Costs are reported, never invented.** Token counts always print. A dollar
 figure only appears for models with a published price on file; an unlisted model
-reports tokens and says there's no estimate, rather than guessing.
+reports tokens and says there's no estimate, rather than guessing. Cached results
+are reported separately — provenance keeps the token counts from the original
+call, so a run served from cache says `no API call, no new spend` instead of
+billing you twice on paper.
 
 **Politeness, since this hits sites owned by real people.** A declared
 User-Agent, `robots.txt` checked before the first request *on every backend*,
@@ -307,11 +312,12 @@ normalization across vendors, and cache invalidation.
 
 ## What this isn't
 
-- **Only `direct` and `firecrawl` are live-tested.** Both have been run against
-  real sites. `crawl4ai` and `apify` are built to their documented API shapes and
-  covered by tests against mocked transports, but no successful call has been
-  made to either. Same for the OpenAI provider — the request shape is verified,
-  a real completion is not.
+- **`crawl4ai` and `apify` have never made a successful call.** `direct` and
+  `firecrawl` are live-tested against real sites, and the Anthropic provider is
+  live-tested end to end. The other two backends and the OpenAI provider are
+  built to their documented API shapes and covered by tests against mocked
+  transports — which, as the raw-vs-cleaned HTML note above shows, is not the
+  same as working.
 - **The homepage only.** No crawling to `/about`, `/pricing`, or `/customers`,
   which is where a lot of the real signal lives.
 - **The keyword fallback is genuinely crude.** It's substring matching against a

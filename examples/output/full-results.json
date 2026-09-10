@@ -5,50 +5,66 @@
       "ok": true,
       "analysis": {
         "company_name": "Stripe",
-        "one_liner": "Stripe is a financial services platform that helps all types of businesses accept payments, build flexible billing models, and manage money movement.",
-        "category": "payments",
+        "one_liner": "Financial infrastructure platform for accepting payments, running billing and subscriptions, and moving money globally, via APIs and no-code tools.",
+        "category": "payments / financial infrastructure",
         "sells_to": "B2B",
-        "segment": "Enterprise",
+        "segment": "Mixed",
         "business_model": "SaaS",
         "industries_served": [
-          "fintech",
-          "financial services",
-          "retail",
-          "legal",
-          "insurance",
-          "nonprofit",
-          "hospitality",
-          "media"
+          "Fintech",
+          "Gaming",
+          "Hospitality, travel, and leisure",
+          "Insurance",
+          "Media and entertainment",
+          "Nonprofits",
+          "Professional services",
+          "Retail"
         ],
-        "icp_fit_score": 54,
-        "icp_fit_rationale": "Heuristic keyword match only -- no model was used. 1 good-fit and 0 poor-fit ICP terms found on the page.",
+        "icp_fit_score": 58,
+        "icp_fit_rationale": "Stripe is a B2B software company with an enormous content engine (blog, guides, customer stories, gated reports, an annual conference, and video links), which matches the content-marketing profile. However, it is far beyond the 50-2000 employee mid-market band, has Fortune 100 enterprise procurement dynamics, and almost certainly runs video in-house, so realistic fit is limited.",
         "buying_signals": [
-          "Careers page is live (hiring)",
-          "Recent product launch language on the homepage"
+          "Sessions 2026 conference content promoted ('Building the economic infrastructure for AI', Watch now)",
+          "Annual letter published: businesses on Stripe generated $1.9T in 2025",
+          "Crypto.com partnership announcement for crypto payments",
+          "New agentic commerce solutions / Agentic Commerce Protocol launch",
+          "Gated reports offered (Tidemark vertical SaaS benchmark, retailer growth report)",
+          "Active hiring via careers page and sales chat with '7 sales reps available'"
         ],
-        "disqualifiers": [],
-        "primary_cta": "Contact sales",
-        "confidence": 0.4,
+        "disqualifiers": [
+          "Company scale far exceeds the 50-2000 employee mid-market target; enterprise procurement",
+          "Likely already has in-house video/production and MarTech stack",
+          "Global consumer-scale platform, not a typical mid-market marketing buyer"
+        ],
+        "primary_cta": "Start now / Create an account (with Contact sales secondary)",
+        "confidence": 0.86,
         "evidence": [
           {
-            "claim": "one_liner",
-            "quote": "Stripe is a financial services platform that helps all types of businesses accept payments, build flexible billing models, and manage money movement."
+            "claim": "B2B financial infrastructure positioning",
+            "quote": "Financial infrastructure to grow your revenue."
           },
           {
-            "claim": "category",
-            "quote": "- Products\n- Solutions\n- Developers\n- Resources\n- Pricinghttps://stripe.com/pricing\n- Sign inhttps://dashboard.stripe.com/login"
+            "claim": "Enterprise scale and Fortune 100 customers",
+            "quote": "50% of Fortune 100 companies have used Stripe to grow their businesses"
+          },
+          {
+            "claim": "Content marketing engine with gated assets and video",
+            "quote": "Tidemark\u2019s vertical and SMB SaaS benchmark report."
+          },
+          {
+            "claim": "Self-serve plus sales-led funnel with pricing page",
+            "quote": "Create an account instantly, or contact us to design a custom package for your business."
           }
         ]
       },
       "provenance": {
         "source_url": "https://stripe.com/",
         "scraped_at": "2026-09-10 18:29:01.916038+00:00",
-        "analyzed_at": "2026-09-10 18:29:02.167354+00:00",
-        "analyzer": "heuristic:v1",
+        "analyzed_at": "2026-09-10 18:35:02.253720+00:00",
+        "analyzer": "anthropic:claude-opus-5",
         "content_hash": "b78de7d3d49e1b19",
-        "input_tokens": null,
-        "output_tokens": null,
-        "cost_usd": null
+        "input_tokens": 14077,
+        "output_tokens": 821,
+        "cost_usd": 0.09091
       },
       "tech_signals": [
         "Google Tag Manager",
@@ -66,50 +82,66 @@
         "has_integrations": true,
         "has_contact_sales": true
       },
-      "error": null
+      "error": null,
+      "from_cache": true
     },
     {
       "domain": "linear.app",
       "ok": true,
       "analysis": {
         "company_name": "Linear",
-        "one_liner": "Purpose-built for planning and building products with AI agents.",
-        "category": "developer tools",
+        "one_liner": "Linear is a product development platform for planning, building, and shipping software, with AI agents built into the workflow.",
+        "category": "product development / issue tracking & project management software",
         "sells_to": "B2B",
         "segment": "Mixed",
         "business_model": "SaaS",
         "industries_served": [
-          "legal"
+          "Software / technology",
+          "Fintech",
+          "Real estate technology"
         ],
-        "icp_fit_score": 54,
-        "icp_fit_rationale": "Heuristic keyword match only -- no model was used. 1 good-fit and 0 poor-fit ICP terms found on the page.",
+        "icp_fit_score": 72,
+        "icp_fit_rationale": "Linear is a clear B2B SaaS company with the right shape: pricing page, customer stories, changelog, blog/resources, self-serve signup plus contact sales, and named logos (OpenAI, Ramp, Opendoor). No evidence of embedded marketing video, gated content, or a marketing-automation-driven demand gen program on the homepage \u2014 the page is product-demo visuals rather than content marketing, and it may skew engineering-led rather than marketing-led.",
         "buying_signals": [
-          "Careers page is live (hiring)",
-          "Recent product launch language on the homepage"
+          "New product launch: 'Loops' announced on the homepage",
+          "Active changelog with frequent feature releases (Coding sessions, Team initiatives, Priority inbox)",
+          "Careers page indicating hiring",
+          "Enterprise page and contact sales motion suggesting upmarket expansion",
+          "Customer stories program (OpenAI, Ramp, Opendoor) and 40,000 product teams scale"
         ],
-        "disqualifiers": [],
-        "primary_cta": "Start a free trial",
-        "confidence": 0.4,
+        "disqualifiers": [
+          "Marketing narrative is product/engineering-led; no visible video program or gated demand-gen content"
+        ],
+        "primary_cta": "Get started (sign up), with secondary Contact sales",
+        "confidence": 0.82,
         "evidence": [
           {
-            "claim": "one_liner",
-            "quote": "Purpose-built for planning and building products with AI agents."
+            "claim": "B2B SaaS product development platform",
+            "quote": "Purpose-built for planning and building products. Designed for the AI era."
           },
           {
-            "claim": "category",
-            "quote": "Skip to content \u2192https://linear.app/skip-nav"
+            "claim": "Scale and mix of startups through enterprise",
+            "quote": "Linear powers over **40,000** product teams. From ambitious startups to major enterprises."
+          },
+          {
+            "claim": "Named customer logos and customer stories",
+            "quote": "Our speed is intense and Linear helps us be action biased."
+          },
+          {
+            "claim": "Self-serve plus sales-assisted funnel",
+            "quote": "[Get started](https://linear.app/signup) [Contact sales](https://linear.app/contact/sales)"
           }
         ]
       },
       "provenance": {
         "source_url": "https://linear.app/",
         "scraped_at": "2026-09-10 18:29:01.763712+00:00",
-        "analyzed_at": "2026-09-10 18:29:02.162669+00:00",
-        "analyzer": "heuristic:v1",
+        "analyzed_at": "2026-09-10 18:35:01.452794+00:00",
+        "analyzer": "anthropic:claude-opus-5",
         "content_hash": "1e3055819bdf1709",
-        "input_tokens": null,
-        "output_tokens": null,
-        "cost_usd": null
+        "input_tokens": 11647,
+        "output_tokens": 723,
+        "cost_usd": 0.07630999999999999
       },
       "tech_signals": [
         "Next.js"
@@ -126,42 +158,56 @@
         "has_integrations": true,
         "has_contact_sales": true
       },
-      "error": null
+      "error": null,
+      "from_cache": true
     },
     {
       "domain": "gong.io",
       "ok": true,
       "analysis": {
         "company_name": "Gong",
-        "one_liner": "Gong Revenue AI OS helps your entire GTM organization win. Drive growth with multimodal revenue signal processing, specialized AI agents, and purpose-built applications.",
-        "category": "crm",
+        "one_liner": "Gong sells a Revenue AI operating system that captures and analyzes customer interactions to help GTM teams forecast, coach, and close deals.",
+        "category": "revenue intelligence / sales AI software",
         "sells_to": "B2B",
-        "segment": "Unclear",
+        "segment": "Enterprise",
         "business_model": "SaaS",
         "industries_served": [
-          "healthcare",
-          "financial services",
-          "education",
-          "manufacturing",
-          "legal",
-          "media"
+          "Technology / SaaS",
+          "Financial services",
+          "Healthcare",
+          "Manufacturing"
         ],
-        "icp_fit_score": 67,
-        "icp_fit_rationale": "Heuristic keyword match only -- no model was used. 4 good-fit and 0 poor-fit ICP terms found on the page.",
+        "icp_fit_score": 72,
+        "icp_fit_rationale": "Textbook B2B SaaS content-marketing machine: blog, Gong Labs research, resource library, customer stories, product tour, pricing page, demo form, and a flagship user conference \u2014 exactly the marketing org that buys video hosting. Score is capped because the copy skews enterprise (Fortune 10, 5,000+ customers, Google/LinkedIn/ADP logos) and there is no visible embedded video on the homepage itself.",
         "buying_signals": [
-          "Careers page is live (hiring)",
-          "Analyst or review-site recognition claimed"
+          "Hosting 'Celebrate '26' user conference Sept 29\u2013Oct 1 in Las Vegas \u2014 event content/video production need",
+          "Careers page flagged 'We're hiring!'",
+          "Active blog cadence and Gong Labs research program",
+          "Recent product launches: Gong Agents, Gong Revenue Graph, Gong Collective",
+          "Ran a live panel webinar with G2 and HubSpot",
+          "Product tour and demo-led funnel with gated form"
         ],
-        "disqualifiers": [],
+        "disqualifiers": [
+          "Enterprise-scale buyer (Fortune 10 references, 5,000+ customers) may mean heavy procurement",
+          "Large in-house marketing/AI org may build rather than buy"
+        ],
         "primary_cta": "Book a demo",
-        "confidence": 0.4,
+        "confidence": 0.85,
         "evidence": [
           {
-            "claim": "one_liner",
-            "quote": "Gong Revenue AI OS helps your entire GTM organization win. Drive growth with multimodal revenue signal processing, specialized AI agents, and purpose-built applications."
+            "claim": "Enterprise proof points and named logos",
+            "quote": "of the FORTUNE 10 run on Gong"
           },
           {
-            "claim": "category",
+            "claim": "Demo-led funnel with gated form",
+            "quote": "Book a demo to see how specialized agents, purpose-built applications, and the world\u2019s richest revenue signals work together to help you win."
+          },
+          {
+            "claim": "Runs content marketing at scale",
+            "quote": "## Helpful resources"
+          },
+          {
+            "claim": "Customer-facing event coming up",
             "quote": "The future of revenue is being built at Celebrate \u201826, Sept 29\u2013Oct 1, in Las Vegas."
           }
         ]
@@ -169,12 +215,12 @@
       "provenance": {
         "source_url": "https://www.gong.io/",
         "scraped_at": "2026-09-10 18:29:02.150922+00:00",
-        "analyzed_at": "2026-09-10 18:29:02.173179+00:00",
-        "analyzer": "heuristic:v1",
+        "analyzed_at": "2026-09-10 18:35:02.248900+00:00",
+        "analyzer": "anthropic:claude-opus-5",
         "content_hash": "389cec897b602ba1",
-        "input_tokens": null,
-        "output_tokens": null,
-        "cost_usd": null
+        "input_tokens": 19916,
+        "output_tokens": 769,
+        "cost_usd": 0.11880500000000001
       },
       "tech_signals": [
         "Google Tag Manager",
@@ -193,53 +239,58 @@
         "has_integrations": false,
         "has_contact_sales": true
       },
-      "error": null
+      "error": null,
+      "from_cache": true
     },
     {
       "domain": "wistia.com",
       "ok": true,
       "analysis": {
         "company_name": "Wistia",
-        "one_liner": "Wistia is the video marketing platform for business. Create, host, market, and measure video content with our collaborative tools, and thrive with video.",
-        "category": "video platform",
+        "one_liner": "Wistia is a video marketing platform for businesses offering video hosting, webinars, recording/editing, lead-capture forms, and analytics that sync to marketing tools.",
+        "category": "video hosting / video marketing platform",
         "sells_to": "B2B",
-        "segment": "Enterprise",
+        "segment": "Mixed",
         "business_model": "SaaS",
-        "industries_served": [
-          "education",
-          "media"
-        ],
-        "icp_fit_score": 42,
-        "icp_fit_rationale": "Heuristic keyword match only -- no model was used. 5 good-fit and 2 poor-fit ICP terms found on the page.",
-        "buying_signals": [
-          "Careers page is live (hiring)",
-          "Funding mentioned on the homepage"
-        ],
+        "industries_served": [],
+        "icp_fit_score": 2,
+        "icp_fit_rationale": "Wistia is a direct competitor \u2014 it sells exactly the video hosting, analytics, and lead-capture platform we sell, including HubSpot/Marketo/Pardot integrations. Automatic disqualification regardless of otherwise strong content-marketing signals.",
+        "buying_signals": [],
         "disqualifiers": [
-          "Poor-fit ICP terms present: video hosting, video player"
+          "Direct competitor: video hosting and video marketing platform",
+          "Sells the same lead-capture, analytics, and marketing-automation video features we offer",
+          "Publishes competitive comparison content (Wistia vs Vimeo)"
         ],
-        "primary_cta": "Book a demo",
-        "confidence": 0.4,
+        "primary_cta": "Start a free trial / Sign up for free",
+        "confidence": 0.97,
         "evidence": [
           {
-            "claim": "one_liner",
-            "quote": "Wistia is the video marketing platform for business. Create, host, market, and measure video content with our collaborative tools, and thrive with video."
+            "claim": "Company is a video marketing platform (direct competitor)",
+            "quote": "Wistia is the video marketing platform for business. Create, host, market, and measure video content"
           },
           {
-            "claim": "category",
-            "quote": "Catch Wistia at UNBOUND 2026https://wistia.com/explore/unbound2026"
+            "claim": "Offers lead capture and marketing automation integrations we sell",
+            "quote": "Marketing automationUse video with HubSpot, Marketo, or Pardot"
+          },
+          {
+            "claim": "Positions against other video hosting vendors",
+            "quote": "Choosing between Wistia & Vimeo?"
+          },
+          {
+            "claim": "Self-serve funnel with free trial and sales motion",
+            "quote": "[See our plans](https://wistia.com/pricing \"See our plans\") [Start a free trial]"
           }
         ]
       },
       "provenance": {
         "source_url": "https://wistia.com/",
         "scraped_at": "2026-09-10 18:29:01.338942+00:00",
-        "analyzed_at": "2026-09-10 18:29:02.176552+00:00",
-        "analyzer": "heuristic:v1",
+        "analyzed_at": "2026-09-10 18:34:59.093393+00:00",
+        "analyzer": "anthropic:claude-opus-5",
         "content_hash": "800b17d5f936323b",
-        "input_tokens": null,
-        "output_tokens": null,
-        "cost_usd": null
+        "input_tokens": 10891,
+        "output_tokens": 584,
+        "cost_usd": 0.06905499999999999
       },
       "tech_signals": [
         "Google Tag Manager",
@@ -258,47 +309,63 @@
         "has_integrations": true,
         "has_contact_sales": true
       },
-      "error": null
+      "error": null,
+      "from_cache": true
     },
     {
       "domain": "notion.so",
       "ok": true,
       "analysis": {
         "company_name": "Notion",
-        "one_liner": "Build Custom Agents, search across all your apps, and automate busywork. The AI workspace where teams get more done, faster.",
-        "category": "developer tools",
+        "one_liner": "An AI-powered connected workspace for notes, docs, projects and knowledge management, with agents that automate team busywork.",
+        "category": "productivity / collaboration software (AI workspace)",
         "sells_to": "B2B",
         "segment": "Mixed",
         "business_model": "SaaS",
         "industries_served": [],
-        "icp_fit_score": 59,
-        "icp_fit_rationale": "Heuristic keyword match only -- no model was used. 2 good-fit and 0 poor-fit ICP terms found on the page.",
+        "icp_fit_score": 62,
+        "icp_fit_rationale": "Notion is a B2B SaaS company with a full content marketing stack \u2014 blog, webinars, customer stories, academy, product tours \u2014 plus a self-serve free signup and a demo-led enterprise funnel, and a video player embedded on the homepage. Fit is capped because the proof points (62% of Fortune 100, 100M users, named enterprise logos like FedEx, Toyota, Nvidia) place it well above the 50\u20132000 employee mid-market band and imply enterprise procurement and likely in-house video tooling.",
         "buying_signals": [
-          "Careers page is live (hiring)"
+          "Active webinar program linked in nav (webinars page)",
+          "Customer stories library with named logos (OpenAI, Figma, Ramp, Cursor, Toyota)",
+          "Video/product tours and demo content published on site ('Product tours', homepage video 'Play')",
+          "Dedicated Enterprise and Startups go-to-market pages plus 'Request a demo' contact-sales motion",
+          "New Custom Agents / AI product launch messaging and a 'What's New' releases page"
         ],
-        "disqualifiers": [],
-        "primary_cta": "Book a demo",
-        "confidence": 0.4,
+        "disqualifiers": [
+          "Company scale far above mid-market ICP (100M users, 62% of Fortune 100) implying enterprise procurement",
+          "Likely large in-house marketing/creative stack already"
+        ],
+        "primary_cta": "Get Notion free",
+        "confidence": 0.85,
         "evidence": [
           {
-            "claim": "one_liner",
-            "quote": "Build Custom Agents, search across all your apps, and automate busywork. The AI workspace where teams get more done, faster."
+            "claim": "Runs a content marketing program with blog, webinars, customer stories",
+            "quote": "[What's New](https://www.notion.com/releases)\n- [Customer stories](https://www.notion.com/customers)\n- [Blog](https://www.notion.com/blog)\n- [Webinars](https://www.notion.com/webinars)"
           },
           {
-            "claim": "category",
-            "quote": "Notion \u2013 Homehttps://www.notion.com/product"
+            "claim": "Self-serve plus demo-led funnel with pricing page",
+            "quote": "[Get Notion free](https://www.notion.com/signup?from=marketing&pathname=%2F&tid=179c31c7220e492b903f7d1be7d6d0c1) [Request a demo](https://www.notion.com/contact-sales)"
+          },
+          {
+            "claim": "Enterprise-scale proof points beyond mid-market ICP",
+            "quote": "62% of Fortune 100 use Notion"
+          },
+          {
+            "claim": "Video present on the homepage",
+            "quote": "![](<Base64-Image-Removed>)Play"
           }
         ]
       },
       "provenance": {
         "source_url": "https://www.notion.com/",
         "scraped_at": "2026-09-10 18:29:01.967080+00:00",
-        "analyzed_at": "2026-09-10 18:29:02.179599+00:00",
-        "analyzer": "heuristic:v1",
+        "analyzed_at": "2026-09-10 18:35:05.795405+00:00",
+        "analyzer": "anthropic:claude-opus-5",
         "content_hash": "359d6db72c5f7509",
-        "input_tokens": null,
-        "output_tokens": null,
-        "cost_usd": null
+        "input_tokens": 10486,
+        "output_tokens": 999,
+        "cost_usd": 0.077405
       },
       "tech_signals": [
         "Next.js"
@@ -315,102 +382,13 @@
         "has_integrations": false,
         "has_contact_sales": true
       },
-      "error": null
+      "error": null,
+      "from_cache": true
     }
   ],
   "writes": [
     {
       "domain": "stripe.com",
-      "destination": "dryrun:salesforce",
-      "action": "would_create",
-      "record_id": null,
-      "changed_fields": [
-        "GTM_Business_Model__c",
-        "GTM_Buying_Signals__c",
-        "GTM_Category__c",
-        "GTM_Enriched_At__c",
-        "GTM_Enriched_From_URL__c",
-        "GTM_Enrichment_Confidence__c",
-        "GTM_Enrichment_Source__c",
-        "GTM_Has_Careers_Page__c",
-        "GTM_Has_Demo_CTA__c",
-        "GTM_Has_Pricing_Page__c",
-        "GTM_ICP_Fit_Rationale__c",
-        "GTM_ICP_Fit_Score__c",
-        "GTM_Industries_Served__c",
-        "GTM_One_Liner__c",
-        "GTM_Primary_CTA__c",
-        "GTM_Segment__c",
-        "GTM_Sells_To__c",
-        "GTM_Source_Content_Hash__c",
-        "GTM_Tech_Signals__c",
-        "Name",
-        "Website"
-      ],
-      "error": null
-    },
-    {
-      "domain": "linear.app",
-      "destination": "dryrun:salesforce",
-      "action": "would_create",
-      "record_id": null,
-      "changed_fields": [
-        "GTM_Business_Model__c",
-        "GTM_Buying_Signals__c",
-        "GTM_Category__c",
-        "GTM_Enriched_At__c",
-        "GTM_Enriched_From_URL__c",
-        "GTM_Enrichment_Confidence__c",
-        "GTM_Enrichment_Source__c",
-        "GTM_Has_Careers_Page__c",
-        "GTM_Has_Demo_CTA__c",
-        "GTM_Has_Pricing_Page__c",
-        "GTM_ICP_Fit_Rationale__c",
-        "GTM_ICP_Fit_Score__c",
-        "GTM_Industries_Served__c",
-        "GTM_One_Liner__c",
-        "GTM_Primary_CTA__c",
-        "GTM_Segment__c",
-        "GTM_Sells_To__c",
-        "GTM_Source_Content_Hash__c",
-        "GTM_Tech_Signals__c",
-        "Name",
-        "Website"
-      ],
-      "error": null
-    },
-    {
-      "domain": "gong.io",
-      "destination": "dryrun:salesforce",
-      "action": "would_create",
-      "record_id": null,
-      "changed_fields": [
-        "GTM_Business_Model__c",
-        "GTM_Buying_Signals__c",
-        "GTM_Category__c",
-        "GTM_Enriched_At__c",
-        "GTM_Enriched_From_URL__c",
-        "GTM_Enrichment_Confidence__c",
-        "GTM_Enrichment_Source__c",
-        "GTM_Has_Careers_Page__c",
-        "GTM_Has_Demo_CTA__c",
-        "GTM_Has_Pricing_Page__c",
-        "GTM_ICP_Fit_Rationale__c",
-        "GTM_ICP_Fit_Score__c",
-        "GTM_Industries_Served__c",
-        "GTM_One_Liner__c",
-        "GTM_Primary_CTA__c",
-        "GTM_Segment__c",
-        "GTM_Sells_To__c",
-        "GTM_Source_Content_Hash__c",
-        "GTM_Tech_Signals__c",
-        "Name",
-        "Website"
-      ],
-      "error": null
-    },
-    {
-      "domain": "wistia.com",
       "destination": "dryrun:salesforce",
       "action": "would_create",
       "record_id": null,
@@ -441,6 +419,97 @@
       "error": null
     },
     {
+      "domain": "linear.app",
+      "destination": "dryrun:salesforce",
+      "action": "would_create",
+      "record_id": null,
+      "changed_fields": [
+        "GTM_Business_Model__c",
+        "GTM_Buying_Signals__c",
+        "GTM_Category__c",
+        "GTM_Disqualifiers__c",
+        "GTM_Enriched_At__c",
+        "GTM_Enriched_From_URL__c",
+        "GTM_Enrichment_Confidence__c",
+        "GTM_Enrichment_Source__c",
+        "GTM_Has_Careers_Page__c",
+        "GTM_Has_Demo_CTA__c",
+        "GTM_Has_Pricing_Page__c",
+        "GTM_ICP_Fit_Rationale__c",
+        "GTM_ICP_Fit_Score__c",
+        "GTM_Industries_Served__c",
+        "GTM_One_Liner__c",
+        "GTM_Primary_CTA__c",
+        "GTM_Segment__c",
+        "GTM_Sells_To__c",
+        "GTM_Source_Content_Hash__c",
+        "GTM_Tech_Signals__c",
+        "Name",
+        "Website"
+      ],
+      "error": null
+    },
+    {
+      "domain": "gong.io",
+      "destination": "dryrun:salesforce",
+      "action": "would_create",
+      "record_id": null,
+      "changed_fields": [
+        "GTM_Business_Model__c",
+        "GTM_Buying_Signals__c",
+        "GTM_Category__c",
+        "GTM_Disqualifiers__c",
+        "GTM_Enriched_At__c",
+        "GTM_Enriched_From_URL__c",
+        "GTM_Enrichment_Confidence__c",
+        "GTM_Enrichment_Source__c",
+        "GTM_Has_Careers_Page__c",
+        "GTM_Has_Demo_CTA__c",
+        "GTM_Has_Pricing_Page__c",
+        "GTM_ICP_Fit_Rationale__c",
+        "GTM_ICP_Fit_Score__c",
+        "GTM_Industries_Served__c",
+        "GTM_One_Liner__c",
+        "GTM_Primary_CTA__c",
+        "GTM_Segment__c",
+        "GTM_Sells_To__c",
+        "GTM_Source_Content_Hash__c",
+        "GTM_Tech_Signals__c",
+        "Name",
+        "Website"
+      ],
+      "error": null
+    },
+    {
+      "domain": "wistia.com",
+      "destination": "dryrun:salesforce",
+      "action": "would_create",
+      "record_id": null,
+      "changed_fields": [
+        "GTM_Business_Model__c",
+        "GTM_Category__c",
+        "GTM_Disqualifiers__c",
+        "GTM_Enriched_At__c",
+        "GTM_Enriched_From_URL__c",
+        "GTM_Enrichment_Confidence__c",
+        "GTM_Enrichment_Source__c",
+        "GTM_Has_Careers_Page__c",
+        "GTM_Has_Demo_CTA__c",
+        "GTM_Has_Pricing_Page__c",
+        "GTM_ICP_Fit_Rationale__c",
+        "GTM_ICP_Fit_Score__c",
+        "GTM_One_Liner__c",
+        "GTM_Primary_CTA__c",
+        "GTM_Segment__c",
+        "GTM_Sells_To__c",
+        "GTM_Source_Content_Hash__c",
+        "GTM_Tech_Signals__c",
+        "Name",
+        "Website"
+      ],
+      "error": null
+    },
+    {
       "domain": "notion.so",
       "destination": "dryrun:salesforce",
       "action": "would_create",
@@ -449,6 +518,7 @@
         "GTM_Business_Model__c",
         "GTM_Buying_Signals__c",
         "GTM_Category__c",
+        "GTM_Disqualifiers__c",
         "GTM_Enriched_At__c",
         "GTM_Enriched_From_URL__c",
         "GTM_Enrichment_Confidence__c",
