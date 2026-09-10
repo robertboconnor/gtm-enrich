@@ -1,5 +1,9 @@
 # gtm-enrich
 
+[![CI](https://github.com/robertboconnor/gtm-enrich/actions/workflows/ci.yml/badge.svg)](https://github.com/robertboconnor/gtm-enrich/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 Scrape a company's homepage, ask a fixed set of GTM questions about what's there,
 and write the answers back into Salesforce or HubSpot as structured fields.
 
