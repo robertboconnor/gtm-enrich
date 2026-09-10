@@ -28,10 +28,11 @@ domains ──▶ scrape ──▶ markdown ──▶ analyze ──▶ map ─�
 | `scrape/fetchers/` | Four fetch backends behind one interface — `direct` (plain HTTP, no key), `firecrawl`, `crawl4ai` (self-hosted), `apify`. Three of them render JavaScript. |
 | `analyze/providers/` | Two LLM providers behind one interface — **Anthropic** and **OpenAI** — both using schema-enforced structured output, plus a keyword fallback that needs no key at all. |
 | `scrape/markdown.py` | HTML → markdown, and the deterministic signals: vendor fingerprints and structural facts, parsed rather than inferred. |
+| `scrape/probe.py` | Does a given page actually exist? Guards against sites that answer `200` for URLs that don't. |
 | `mapping.py` + `config/mapping.yaml` | Enrichment fields → CRM API names, per destination. No field name is hardcoded anywhere. |
 | `config/icp.yaml` | What "good fit" means. Injected into the prompt, so editing it changes every score. |
 | `destinations/` | `dryrun`, `hubspot`, `salesforce` — all sharing one find → diff → write upsert. |
-| `cli.py` | `check`, `fields`, `scrape`, `run`. |
+| `cli.py` | `check`, `fields`, `scrape`, `probe`, `run`. |
 
 ## Requirements
 
@@ -107,10 +108,71 @@ Then mix and match:
 
 ```bash
 gtm-enrich scrape gong.io --scraper firecrawl
+gtm-enrich probe vercel.com              # which pages actually exist?
 gtm-enrich run --domains accounts.csv --provider openai --model gpt-5-nano
 gtm-enrich run --domains accounts.csv --scraper apify --dest hubspot
 gtm-enrich fields --dest salesforce      # the fields to create before a live run
 ```
+
+## The soft-404 problem
+
+Checking whether a company has a pricing page sounds like a `HEAD /pricing` and a
+status code. It isn't. Measured across seven well-known B2B sites, **three
+returned `200 OK` for a random 32-character path**:
+
+```
+stripe.com    404      linear.app    200   <-- status is useless
+gong.io       404      notion.so     200   <-- status is useless
+wistia.com    404      vercel.com    200   <-- status is useless
+hubspot.com   404
+```
+
+SPA catch-all routes and branded "we couldn't find that" pages both do this. A
+naive existence check marks every path on those sites as present.
+
+`gtm-enrich probe` guards against it with a **control probe**. Before checking
+anything real, it asks the site for a URL that certainly does not exist and keeps
+what comes back. That one extra request calibrates every later check against how
+*this* site behaves:
+
+```
+$ gtm-enrich probe vercel.com
+vercel.com answers 200 for a URL that cannot exist — comparing content instead
+control page: status 200, 339,314 chars
+
+┏━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Path       ┃ Verdict ┃ Conf ┃ Similarity ┃ Why                           ┃
+┡━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ /pricing   │ exists  │ 0.95 │      0.282 │ on-topic content found        │
+│ /plans     │ missing │ 0.95 │      0.995 │ soft 404: 1.00 similar to the │
+│            │         │      │            │ control page                  │
+│ /customers │ exists  │ 0.95 │      0.401 │ on-topic content found        │
+└────────────┴─────────┴──────┴────────────┴───────────────────────────────┘
+```
+
+Real pages sit near zero similarity to the control, soft 404s near one. The
+separation is not marginal — measured on live sites, `/pricing` scored 0.000 and
+0.020 while known-missing paths scored 0.926 and 1.000 — so the 0.85 threshold
+has enormous headroom in both directions.
+
+Three details make it hold up:
+
+**It adapts to the site.** A site with honest 404s gets its status codes trusted.
+A site that 200s everything gets content comparison. A site that 200s everything
+*and renders nothing* (a JS shell over plain HTTP) is flagged as such, and
+positive verdicts there come back at 0.5 confidence with the reason
+`"the control page rendered nothing so soft 404s cannot be ruled out"` — better
+to say what you can't prove than to guess.
+
+**"Gated" is a third verdict, not a synonym for missing.** `notion.so/packages`
+is neither a real page nor a 404 — it's a login wall saying *"Sign in to see this
+page."* Collapsing "we can't tell" into "it isn't there" produces exactly the
+confident-and-wrong CRM field this project exists to avoid.
+
+**Markers alone are not enough.** Checking for the words "page not found" catches
+the easy case and misses the one that matters: a branded catch-all rendering the
+site's normal nav and footer, never admitting anything is wrong. Only the control
+comparison catches that, which is why the test suite fixtures one of each.
 
 ## What it produces
 
@@ -297,7 +359,7 @@ immediately — that's a config error, not a data error, and it should be loud.
 ## Tests
 
 ```bash
-pytest -q                  # 132 tests, no network, no credentials
+pytest -q                  # 156 tests, no network, no credentials
 ruff check src tests
 ```
 
@@ -308,7 +370,8 @@ refusals, the www fallback, JS-only shells, all four backends' response shapes
 and a regression test pinning the raw-vs-cleaned HTML choice above), per-destination
 type coercion, no-op suppression, `Retry-After`
 handling, SOQL injection guards, both providers' refusal paths, token
-normalization across vendors, and cache invalidation.
+normalization across vendors, cache invalidation, and every soft-404 verdict
+including the branded catch-all that no keyword check would catch.
 
 ## What this isn't
 
@@ -341,6 +404,7 @@ src/gtm_enrich/
 ├── scrape/
 │   ├── fetch.py         # robots, apex/www fallback, cache, page assembly
 │   ├── markdown.py      # HTML → markdown + deterministic signals
+│   ├── probe.py         # does this page exist? soft-404 guard
 │   └── fetchers/        # direct · firecrawl · crawl4ai · apify
 ├── analyze/
 │   ├── prompt.py        # the questions, and the cached ICP prefix

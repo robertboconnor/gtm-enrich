@@ -36,7 +36,8 @@ from .mapping import mapping_field_names
 from .models import EnrichmentResult
 from .pipeline import enrich_domains, write_results
 from .scrape.fetch import FetchError, RobotsCache, build_client, normalize_domain, scrape_domain
-from .scrape.fetchers import SCRAPER_REQUIREMENTS, SCRAPERS, FetcherError
+from .scrape.fetchers import SCRAPER_REQUIREMENTS, SCRAPERS, FetcherError, build_fetcher
+from .scrape.probe import COMMON_PATHS, ControlMode, PathProber, Verdict
 
 app = typer.Typer(
     add_completion=False,
@@ -300,6 +301,73 @@ def scrape(
         asyncio.run(go())
     except (FetchError, FetcherError, ValueError) as exc:
         console.print(f"[red]Scrape failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+
+@app.command()
+def probe(
+    domain: str = typer.Argument(..., help="Domain or URL, e.g. linear.app."),
+    path: list[str] = typer.Option(
+        None, "--path", "-p", help="Repeatable. Defaults to a common set."
+    ),
+    scraper: str = typer.Option(None, help=f"Fetch backend: {', '.join(SCRAPERS)}."),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Check whether specific pages exist, guarding against soft 404s.
+
+    Plenty of sites answer 200 for a URL that does not exist. This calibrates
+    against a control page first, then reports what it can actually prove.
+    """
+    _configure_logging(verbose)
+    settings = _settings(scraper=scraper)
+    normalized = normalize_domain(domain)
+    paths = {p: COMMON_PATHS.get(p, ()) for p in path} if path else COMMON_PATHS
+
+    async def go() -> None:
+        async with build_client(settings.scrape) as client:
+            fetcher = build_fetcher(settings.scrape, client)
+            prober = PathProber(fetcher)
+            try:
+                control = await prober.calibrate(normalized)
+                explanation = {
+                    ControlMode.HONEST: "returns a real 4xx for a missing page "
+                                        "— status codes are trustworthy",
+                    ControlMode.SOFT: "answers 200 for a URL that cannot exist "
+                                      "— comparing content instead",
+                    ControlMode.BLIND: "answers 200 and renders nothing "
+                                       "— soft 404s cannot be ruled out",
+                }[control.mode]
+                console.print(
+                    f"[bold]{normalized}[/bold] {explanation}\n"
+                    f"[dim]control page: status {control.status_code}, "
+                    f"{control.text_length:,} chars[/dim]\n"
+                )
+                results = await prober.probe_many(normalized, paths, control)
+            finally:
+                await fetcher.aclose()
+
+        table = Table(header_style="bold")
+        table.add_column("Path", style="cyan", no_wrap=True)
+        table.add_column("Verdict")
+        table.add_column("Conf", justify="right")
+        table.add_column("Similarity", justify="right")
+        table.add_column("Why", overflow="fold")
+        colours = {
+            Verdict.EXISTS: "green", Verdict.MISSING: "red",
+            Verdict.GATED: "yellow", Verdict.UNKNOWN: "dim",
+        }
+        for p_, r in results.items():
+            sim = f"{r.similarity_to_control:.3f}" if r.similarity_to_control is not None else "—"
+            table.add_row(
+                p_, f"[{colours[r.verdict]}]{r.verdict.value}[/{colours[r.verdict]}]",
+                f"{r.confidence:.2f}", sim, r.reason,
+            )
+        console.print(table)
+
+    try:
+        asyncio.run(go())
+    except (FetchError, FetcherError, ValueError) as exc:
+        console.print(f"[red]Probe failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
 
