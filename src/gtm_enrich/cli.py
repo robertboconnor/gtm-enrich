@@ -580,7 +580,7 @@ def run(
         if isinstance(destination, DryRunDestination):
             paths = destination.flush()
             console.print(
-                f"\n[green]Dry run:[/green] no API calls made. "
+                f"\n[green]Dry run:[/green] nothing was sent to a CRM. "
                 f"Payloads → {paths['json']}\n              Flat CSV → {paths['csv']}"
             )
 

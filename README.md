@@ -45,10 +45,13 @@ scraper (**direct**, **Firecrawl**, **crawl4ai**, or **Apify**) and your own mod
 | `destinations/` | `dryrun`, `hubspot`, `salesforce` — all sharing one find → diff → write upsert. |
 | `cli.py` | `check`, `fields`, `scrape`, `probe`, `preview`, `run`, `serve`. |
 | `Dockerfile` + `render.yaml` | One image, three jobs. A blueprint for a web service and a nightly cron, neither deployed. |
+| `.github/workflows/` | CI on three Python versions, plus a scheduled-enrichment job — committed deliberately switched off. |
 
 ## Requirements
 
 - **Python 3.10+**
+- `pip install -e ".[server]"` only if you want `gtm-enrich serve` — FastAPI and
+  uvicorn are an extra so the CLI stays light (`.[dev]` already includes them)
 - Optionally an **Anthropic** or **OpenAI** key — without one, runs use the keyword fallback
 - Optionally a **Firecrawl** / **Apify** key or a local **crawl4ai** container — without one, scraping uses plain HTTP
 - Optionally a **HubSpot private app token** or **Salesforce** credentials — without either, writes go to disk
@@ -203,7 +206,10 @@ Same pipeline, three triggers — see [docs/deployment.md](docs/deployment.md).
 
 **Scheduled.** `--since-last-run` records when each run *started* and asks only
 for records modified since. Start rather than finish, so a record changed while a
-run was in flight is caught next time instead of falling into the gap.
+run was in flight is caught next time instead of falling into the gap. The free
+version of this is `.github/workflows/scheduled-enrichment.yml` — Actions on a
+cron, with the page and analysis caches persisted between runs — shipped
+dispatch-only so a fork never starts spending money by itself.
 
 **Real-time.** `gtm-enrich serve` runs a webhook service that does four things in
 this order: **verify, deduplicate, enqueue, return.** The order is the design.
@@ -281,6 +287,12 @@ confident-and-wrong CRM field this project exists to avoid.
 the easy case and misses the one that matters: a branded catch-all rendering the
 site's normal nav and footer, never admitting anything is wrong. Only the control
 comparison catches that, which is why the test suite fixtures one of each.
+
+**One caveat: `probe` is its own command, not a step inside `run`.** The
+`gtm_has_pricing_page` and `gtm_has_demo_cta` fields that actually reach the CRM
+are read off the homepage's own links — no extra requests, and right most of the
+time. Spending a control request plus one request per path on every account, and
+writing *that* verdict instead, is the obvious next move and isn't wired up.
 
 ## What it produces
 
@@ -377,7 +389,9 @@ looks like. OpenAI reports cached tokens *inside* `input_tokens`; Anthropic
 reports them alongside. Anthropic has five effort levels, OpenAI four. Anthropic
 signals refusal via `stop_reason`, OpenAI via an `incomplete` status. All of that
 is absorbed at the provider boundary, so cost accounting means the same thing on
-both and `--effort xhigh` doesn't 400 just because you switched vendor.
+both and `GTM_EFFORT=xhigh` doesn't 400 just because you switched vendor —
+Anthropic's `xhigh` and `max` fold down to OpenAI's `high` rather than erroring.
+Effort is an environment variable today, not a CLI flag.
 
 **Four scrapers, one contract.** A fetcher answers one question: what is on this
 page? It does not decide *whether* to fetch (robots), *which* URL to try (apex vs
@@ -454,8 +468,11 @@ immediately — that's a config error, not a data error, and it should be loud.
 
 ## Safety model
 
-- **Dry run is the default.** `--dest dryrun` writes to `out/` and makes no API
-  calls. You have to name a real destination to touch a CRM.
+- **Dry run is the default.** `--dest dryrun` builds the payload and writes it to
+  `out/` instead of sending it, so no CRM is touched until you name a real
+  destination. It is not a free rehearsal, though: the scrape and the analysis
+  still happen, and still cost whatever your scraper and model cost. What a dry
+  run saves you is the bad write, not the bill.
 - **Writes are diffed first.** Nothing is sent unless a value would actually change.
 - **Credentials live in `.env`**, which is gitignored, or in your shell. Real
   environment variables always beat the file, so CI is never overridden by a
@@ -505,7 +522,11 @@ webhook rejection path — unsigned, tampered, replayed, and redelivered.
 - **The Salesforce matcher uses `Website LIKE`,** which is fine for a POC and
   wrong for a large org. [docs/crm-setup.md](docs/crm-setup.md#3-matching-and-why-you-should-change-it)
   explains the external-ID field you'd use instead.
-- **No scheduler.** It's a CLI. Cron it, or wrap it in whatever you already run.
+- **Nothing here schedules itself.** `--since-last-run` keeps repeat runs
+  incremental, and the repo ships both a Render cron blueprint and a GitHub
+  Actions workflow — but the workflow is committed switched off
+  (`workflow_dispatch` only, `schedule:` commented out) and neither has ever
+  run on a timer. Something outside this repo still has to pull the trigger.
 
 ## Layout
 
