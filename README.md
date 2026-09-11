@@ -12,6 +12,18 @@ Run it by hand, on a schedule, or in real time as records change. Bring your own
 scraper (**direct**, **Firecrawl**, **crawl4ai**, or **Apify**) and your own model
 (**Claude** or **GPT**). Point it at your own stack.
 
+**It is built to be run through a coding agent.** Clone it, open it in Claude
+Code or Codex — or hand the Markdown to whatever else you use — and say *"read
+AGENTS.md and show me this working."* The agent installs it, enriches five real
+companies with no credentials at all, and walks you through the output. Then
+tell it about your CRM and it adapts this to you: the architecture is already
+decided, so what's left is your ICP, your field names, and your keys.
+
+[**AGENTS.md**](AGENTS.md) and [**CLAUDE.md**](CLAUDE.md) are that briefing —
+how to prove it works, how to point it at a new stack, the rules that keep it
+away from your production CRM, and the mistakes already paid for so nobody pays
+for them twice.
+
 > Built by a RevOps operator. The design bias throughout is **dry-run first**:
 > build the exact payload, show it, write nothing until told to.
 
@@ -44,6 +56,7 @@ scraper (**direct**, **Firecrawl**, **crawl4ai**, or **Apify**) and your own mod
 | `config/icp.yaml` | What "good fit" means. Injected into the prompt, so editing it changes every score. |
 | `destinations/` | `dryrun`, `hubspot`, `salesforce` — all sharing one find → diff → write upsert. |
 | `cli.py` | `check`, `fields`, `scrape`, `probe`, `preview`, `run`, `serve`. |
+| `AGENTS.md` + `CLAUDE.md` | The briefing for whatever agent you open this in — bootstrap, adaptation path, guardrails, and the gotchas already paid for. |
 | `Dockerfile` + `render.yaml` | One image, three jobs. A blueprint for a web service and a nightly cron, neither deployed. |
 | `.github/workflows/` | CI on three Python versions, plus a scheduled-enrichment job — committed deliberately switched off. |
 
@@ -61,15 +74,26 @@ Apify SDK to install.
 
 ## Quick start
 
-No credentials required. This works from a clean clone:
+No credentials required — either way.
+
+**Through an agent**, which is what this is designed for. Open the repo and say:
+
+> Read AGENTS.md, then show me this working.
+
+**By hand**, if you'd rather. Needs Python 3.10+, and note that the `python3` on
+a stock Mac is 3.9 and carries a pip too old to install this — it fails with
+`File "setup.py" or "setup.cfg" not found`, which sounds like a missing file and
+is really a stale pip:
 
 ```bash
-pip install -e ".[dev]"
-gtm-enrich run --domains examples/domains.csv --dest dryrun
+python3.13 -m venv .venv          # or 3.10, 3.11, 3.12
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/gtm-enrich run --domains examples/domains.csv --dest dryrun
 ```
 
-That scrapes five real homepages, analyzes them, and writes the exact payloads it
-*would* send to HubSpot into `out/`.
+Either path scrapes five real homepages, analyzes them, and writes the exact
+payloads it *would* send to HubSpot into `out/`. It takes about two seconds.
 
 ```bash
 cp .env.example .env      # then fill in whichever keys you have
@@ -500,21 +524,23 @@ including the branded catch-all that no keyword check would catch, filter
 compilation for both query languages, cursor paging on both sources, and every
 webhook rejection path — unsigned, tampered, replayed, and redelivered.
 
-## What this isn't
+## What's proven, and what's left to you
 
-- **It has never been deployed.** The Dockerfile, the Render blueprint, and the
-  webhook service are written to be wired up, and every part is covered by tests
-  against mocked transports — but no live webhook has ever been pointed at it.
-  The HubSpot *source* is the exception: filter compilation, preflight, and
-  paging were all verified against a real portal.
+Two different things get called limitations, and they deserve different
+treatment: what hasn't been proven, and what was deliberately left for you.
+
+### Not proven
+
 - **`crawl4ai` and `apify` have never made a successful call.** `direct` and
   `firecrawl` are live-tested against real sites, and the Anthropic provider is
   live-tested end to end. The other two backends and the OpenAI provider are
   built to their documented API shapes and covered by tests against mocked
   transports — which, as the raw-vs-cleaned HTML note above shows, is not the
   same as working.
-- **The homepage only.** No crawling to `/about`, `/pricing`, or `/customers`,
-  which is where a lot of the real signal lives.
+- **No live webhook has ever hit the service.** Every rejection path is tested
+  against mocked transports, and the queue survives a restart by design, but
+  tests are not traffic. The HubSpot *source* is the exception: filter
+  compilation, preflight, and paging were all verified against a real portal.
 - **The keyword fallback is genuinely crude.** It's substring matching against a
   keyword list, it's capped at 0.4 confidence, and it labels itself
   `heuristic:v1` in provenance so nobody mistakes it for analysis. It exists so
@@ -522,11 +548,25 @@ webhook rejection path — unsigned, tampered, replayed, and redelivered.
 - **The Salesforce matcher uses `Website LIKE`,** which is fine for a POC and
   wrong for a large org. [docs/crm-setup.md](docs/crm-setup.md#3-matching-and-why-you-should-change-it)
   explains the external-ID field you'd use instead.
-- **Nothing here schedules itself.** `--since-last-run` keeps repeat runs
-  incremental, and the repo ships both a Render cron blueprint and a GitHub
-  Actions workflow — but the workflow is committed switched off
-  (`workflow_dispatch` only, `schedule:` commented out) and neither has ever
-  run on a timer. Something outside this repo still has to pull the trigger.
+
+### Left for you, on purpose
+
+This is the public version. The interesting half of this job is the part that
+only makes sense once you know the stack it's landing in, so the seams are left
+open and opinionated rather than closed and generic:
+
+- **Deployment.** The Dockerfile and the Render blueprint are here and neither
+  has been deployed. [docs/deployment.md](docs/deployment.md) argues for what to
+  wire where; your infrastructure decides the rest.
+- **Scheduling.** `--since-last-run` keeps repeat runs incremental, and both a
+  Render cron and a GitHub Actions workflow ship with the repo — the workflow
+  deliberately switched off (`workflow_dispatch` only) so a clone never starts
+  spending money by itself. Something outside this repo still pulls the trigger.
+- **Scope.** The homepage only. No crawling to `/about`, `/pricing`, or
+  `/customers`, which is where a lot of the real signal lives — and no product
+  usage, no billing data, no support history, all of which beat a homepage for
+  anyone already in your funnel. `sources/` and `scrape/fetchers/` are one
+  interface each; that is where the next signal goes in.
 
 ## Layout
 
